@@ -1,0 +1,94 @@
+
+
+
+#-----------------------------------------------------------------------
+# Component Statement
+
+::tcltest::test component-1.1 {component defines an instance variable} -body {
+    type dog {
+        component tail
+    }
+
+    dog spot
+
+    namespace tail [spot info vars tail]
+} -cleanup {
+    dog destroy
+} -result {tail}
+
+::tcltest::test component-1.2 {-public exposes the component} -body {
+    type tail {
+        method wag {} {
+            return "Wag, wag"
+        }
+    }
+
+    type dog {
+        component tail -public mytail
+
+        constructor {} {
+            set tail [tail %AUTO%]
+        }
+    }
+
+    dog spot
+
+    spot mytail wag
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {Wag, wag}
+
+::tcltest::test component-1.3 {-inherit requires a boolean value} -body {
+    type dog {
+        component animal -inherit foo
+    }
+} -returnCodes {
+    error
+} -result {component animal -inherit: expected boolean value, got "foo"}
+
+::tcltest::test component-1.4 {-inherit delegates unknown methods to the component} -body {
+    type animal {
+        method eat {} {
+            return "Eat, eat."
+        }
+    }
+
+    type dog {
+        component animal -inherit yes
+
+        constructor {} {
+            set animal [animal %AUTO%]
+        }
+    }
+
+    dog spot
+
+    spot eat
+} -cleanup {
+    dog destroy
+    animal destroy
+} -result {Eat, eat.}
+
+::tcltest::test component-1.5 {-inherit delegates unknown options to the component} -body {
+    type animal {
+        option -size medium
+    }
+
+    type dog {
+        component animal -inherit yes
+
+        constructor {} {
+            set animal [animal %AUTO%]
+        }
+    }
+
+    dog spot
+
+    spot cget -size
+} -cleanup {
+    dog destroy
+    animal destroy
+} -result {medium}
+
+tcltest::cleanupTests

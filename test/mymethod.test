@@ -1,0 +1,120 @@
+
+
+
+#-----------------------------------------------------------------------
+# mymethod and renaming
+
+::tcltest::test rename-1.1 {mymethod uses name of instance name variable} -body {
+    type dog {
+        method mymethod {} {
+            list [mymethod] [mymethod "A B"] [mymethod A B]
+        }
+    }
+
+    dog fido
+    fido mymethod
+} -cleanup {
+    dog destroy
+} -result {{::snit::RT.CallInstance ::dog::Snit_inst1} {::snit::RT.CallInstance ::dog::Snit_inst1 {A B}} {::snit::RT.CallInstance ::dog::Snit_inst1 A B}}
+
+::tcltest::test rename-1.2 {instances can be renamed} -body {
+    type dog {
+        method names {} {
+            list [mymethod] $selfns $win $self
+        }
+    }
+
+    dog fido
+    set a [fido names]
+    rename fido spot
+    set b [spot names]
+
+    concat $a $b
+} -cleanup {
+    dog destroy
+} -result {{::snit::RT.CallInstance ::dog::Snit_inst1} ::dog::Snit_inst1 ::fido ::fido {::snit::RT.CallInstance ::dog::Snit_inst1} ::dog::Snit_inst1 ::fido ::spot}
+
+::tcltest::test rename-1.3 {rename to "" deletes an instance} -constraints {
+    bug8.5a3
+} -body {
+    type dog { }
+
+    dog fido
+    rename fido ""
+    namespace children ::dog
+} -cleanup {
+    dog destroy
+} -result {}
+
+::tcltest::test rename-1.4 {rename to "" deletes an instance even after a rename} -constraints {
+    bug8.5a3
+} -body {
+    type dog { }
+
+    dog fido
+    rename fido spot
+    rename spot ""
+    namespace children ::dog
+} -cleanup {
+    dog destroy
+} -result {}
+
+::tcltest::test rename-1.5 {creating an object twice destroys the first instance} -constraints {
+    bug8.5a3
+} -body {
+    type dog {
+        # Can't even test this normally.
+        pragma -canreplace yes
+    }
+
+    dog fido
+    set a [namespace children ::dog]
+    dog fido
+    set b [namespace children ::dog]
+    fido destroy
+    set c [namespace children ::dog]
+
+    list $a $b $c
+} -cleanup {
+    dog destroy
+} -result {::dog::Snit_inst1 ::dog::Snit_inst2 {}}
+
+#-----------------------------------------------------------------------
+# mymethod actually works
+
+::tcltest::test mymethod-1.1 {run mymethod handler} -body {
+    type foo {
+	option -command {}
+	method runcmd {} {
+	    eval [linsert $options(-command) end $self snarf]
+	    return
+	}
+    }
+    type bar {
+	variable sub
+	constructor {args} {
+	    set sub [foo fubar -command [mymethod Handler]]
+	    return
+	}
+
+	method Handler {args} {
+	    set ::RES $args
+	}
+
+	method test {} {
+	    $sub runcmd
+	    return
+	}
+    }
+
+    set ::RES {}
+    bar boogle
+    boogle test
+    set ::RES
+} -cleanup {
+    bar destroy
+    foo destroy
+} -result {::bar::fubar snarf}
+
+
+tcltest::cleanupTests

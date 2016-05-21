@@ -1,0 +1,34 @@
+
+
+
+#-----------------------------------------------------------------------
+# pragma -canreplace
+
+::tcltest::test canreplace-1.1 {By default, "-canreplace no"} -body {
+    type dog {
+        # ...
+    }
+
+    dog fido
+    dog fido
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {command "::fido" already exists}
+
+::tcltest::test canreplace-1.2 {Can replace commands when "-canreplace yes"} -constraints {
+    bug8.5a3
+} -body {
+    type dog {
+        pragma -canreplace yes
+    }
+
+    dog fido
+    dog fido
+} -cleanup {
+    dog destroy
+} -result {::fido}
+
+
+tcltest::cleanupTests

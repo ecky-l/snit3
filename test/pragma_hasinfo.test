@@ -1,0 +1,53 @@
+
+
+
+#-----------------------------------------------------------------------
+# pragma -hasinfo
+
+::tcltest::test hasinfo-1.1 {$obj info is defined by default} -body {
+    type dog {
+        variable foo ""
+    }
+
+    dog spot
+    spot info vars
+} -cleanup {
+    dog destroy
+} -result {::dog::Snit_inst1::foo}
+
+# Case 1
+::tcltest::test hasinfo-1.2 {$obj info can be disabled} -constraints {
+    snit1
+} -body {
+    type dog {
+        pragma -hasinfo no
+        variable foo
+    }
+
+    dog spot
+    spot info vars
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {"::spot info" is not defined}
+
+# Case 2
+::tcltest::test hasinfo-1.3 {$obj info can be disabled} -constraints {
+    snit2
+} -body {
+    type dog {
+        pragma -hasinfo no
+        variable foo
+    }
+
+    dog spot
+    spot info vars
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {unknown subcommand "info": namespace ::dog::Snit_inst1 does not export any commands}
+
+
+tcltest::cleanupTests

@@ -1,0 +1,54 @@
+
+
+
+#-----------------------------------------------------------------------
+# option -readonly semantics
+
+::tcltest::test optionreadonly-1.1 {Readonly options can be set at creation time} -body {
+    type dog {
+        option -color \
+            -default black \
+            -readonly true
+    }
+
+    dog fido -color brown
+
+    fido cget -color
+} -cleanup {
+    dog destroy
+} -result {brown}
+
+::tcltest::test optionreadonly-1.2 {Readonly options can't be set after creation} -body {
+    type dog {
+        option -color \
+            -default black \
+            -readonly true
+    }
+
+    dog fido
+
+    fido configure -color brown
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {option -color can only be set at instance creation}
+
+::tcltest::test optionreadonly-1.3 {Readonly options can't be set after creation} -body {
+    type dog {
+        option -color \
+            -default black \
+            -readonly true
+    }
+
+    dog fido -color yellow
+
+    fido configure -color brown
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {option -color can only be set at instance creation}
+
+
+tcltest::cleanupTests

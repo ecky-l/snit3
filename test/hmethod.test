@@ -1,0 +1,181 @@
+
+
+
+#-----------------------------------------------------------------------
+# hierarchical methods
+
+::tcltest::test hmethod-1.1 {hierarchical method, two tokens} -body {
+    type dog {
+        method {wag tail} {} {
+            return "$self wags tail."
+        }
+    }
+
+    dog spot
+    spot wag tail
+} -cleanup {
+    dog destroy
+} -result {::spot wags tail.}
+
+::tcltest::test hmethod-1.2 {hierarchical method, three tokens} -body {
+    type dog {
+        method {wag tail proudly} {} {
+            return "$self wags tail proudly."
+        }
+    }
+
+    dog spot
+    spot wag tail proudly
+} -cleanup {
+    dog destroy
+} -result {::spot wags tail proudly.}
+
+::tcltest::test hmethod-1.3 {hierarchical method, three tokens} -body {
+    type dog {
+        method {wag tail really high} {} {
+            return "$self wags tail really high."
+        }
+    }
+
+    dog spot
+    spot wag tail really high
+} -cleanup {
+    dog destroy
+} -result {::spot wags tail really high.}
+
+::tcltest::test hmethod-1.4 {redefinition is OK} -body {
+    type dog {
+        method {wag tail} {} {
+            return "$self wags tail."
+        }
+        method {wag tail} {} {
+            return "$self wags tail briskly."
+        }
+    }
+
+    dog spot
+    spot wag tail
+} -cleanup {
+    dog destroy
+} -result {::spot wags tail briskly.}
+
+# Case 1
+::tcltest::test hmethod-1.5 {proper error on missing submethod} -constraints {
+    snit1
+} -body {
+    type dog {
+        method {wag tail} {} { }
+    }
+
+    dog spot
+    spot wag
+} -cleanup {
+    dog destroy
+} -returnCodes {
+    error
+} -result {wrong number args: should be "::spot wag method args"}
+
+# Case 2
+::tcltest::test hmethod-1.6 {proper error on missing submethod} -constraints {
+    snit2
+} -body {
+    type dog {
+        method {wag tail} {} { }
+    }
+
+    dog spot
+    spot wag
+} -cleanup {
+    dog destroy
+} -returnCodes {
+    error
+} -result [expect \
+	       {wrong # args: should be "spot wag subcommand ?arg ...?"} \
+	       {wrong # args: should be "spot wag subcommand ?argument ...?"}]
+
+::tcltest::test hmethod-1.7 {submethods called in proper objects} -body {
+    # NOTE: This test was added in response to a bug report by
+    # Anton Kovalenko.  In Snit 2.0, submethod ensembles were
+    # created in the type namespace.  If a type defines a submethod
+    # ensemble, then all objects of that type would end up sharing
+    # a single ensemble.  Ensembles are created lazily, so in this
+    # test, the first call to "fido this tail wag" and "spot this tail wag"
+    # will yield the correct result, but the second call to
+    # "fido this tail wag" will yield the same as the call to
+    # "spot this tail wag", because spot's submethod ensemble has
+    # displaced fido's.  Until the bug is fixed, that is.
+    #
+    # Fortunately, Anton provided the fix as well.
+    type tail {
+        option -manner
+
+        method wag {} {
+            return "wags tail $options(-manner)"
+        }
+    }
+
+    type dog {
+        delegate option -manner to tail
+        delegate method {this tail wag} to tail
+
+        constructor {args} {
+            set tail [tail %AUTO%]
+            $self configurelist $args
+        }
+    }
+
+    dog fido -manner briskly
+    dog spot -manner slowly
+
+    list [fido this tail wag] [spot this tail wag] [fido this tail wag]
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {{wags tail briskly} {wags tail slowly} {wags tail briskly}}
+
+::tcltest::test hmethod-2.1 {prefix/method collision} -body {
+    type dog {
+        method wag {} {}
+        method {wag tail} {} {
+            return "$self wags tail."
+        }
+    }
+} -returnCodes {
+    error
+} -result {Error in "method {wag tail}...", "wag" has no submethods.}
+
+::tcltest::test hmethod-2.2 {prefix/method collision} -body {
+    type dog {
+        method {wag tail} {} {
+            return "$self wags tail."
+        }
+        method wag {} {}
+    }
+} -returnCodes {
+    error
+} -result {Error in "method wag...", "wag" has submethods.}
+
+::tcltest::test hmethod-2.3 {prefix/method collision} -body {
+    type dog {
+        method {wag tail} {} {}
+        method {wag tail proudly} {} {
+            return "$self wags tail."
+        }
+    }
+} -returnCodes {
+    error
+} -result {Error in "method {wag tail proudly}...", "wag tail" has no submethods.}
+
+::tcltest::test hmethod-2.4 {prefix/method collision} -body {
+    type dog {
+        method {wag tail proudly} {} {
+            return "$self wags tail."
+        }
+        method {wag tail} {} {}
+    }
+} -returnCodes {
+    error
+} -result {Error in "method {wag tail}...", "wag tail" has submethods.}
+
+
+tcltest::cleanupTests

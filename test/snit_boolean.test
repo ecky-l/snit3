@@ -1,0 +1,44 @@
+
+
+
+#-----------------------------------------------------------------------
+# snit::boolean
+
+::tcltest::test boolean-1.1 {boolean: valid} -body {
+    snit::boolean validate 1
+    snit::boolean validate 0
+    snit::boolean validate true
+    snit::boolean validate false
+    snit::boolean validate yes
+    snit::boolean validate no
+    snit::boolean validate on
+    snit::boolean validate off
+} -result {off}
+
+::tcltest::test boolean-1.2 {boolean: invalid} -body {
+    codecatch {snit::boolean validate quux}
+} -result {INVALID invalid boolean "quux", should be one of: 1, 0, true, false, yes, no, on, off}
+
+::tcltest::test boolean-2.1 {boolean subtype: valid} -body {
+    snit::boolean subtype
+    subtype validate 1
+    subtype validate 0
+    subtype validate true
+    subtype validate false
+    subtype validate yes
+    subtype validate no
+    subtype validate on
+    subtype validate off
+} -cleanup {
+    subtype destroy
+} -result {off}
+
+::tcltest::test boolean-2.2 {boolean subtype: invalid} -body {
+    snit::boolean subtype
+    codecatch {subtype validate quux}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid boolean "quux", should be one of: 1, 0, true, false, yes, no, on, off}
+
+
+tcltest::cleanupTests

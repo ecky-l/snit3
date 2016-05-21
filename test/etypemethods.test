@@ -1,0 +1,144 @@
+
+
+
+#-----------------------------------------------------------------------
+# Externally defined typemethods
+
+::tcltest::test etypemethod-1.1 {external typemethods can be called as expected} -body {
+    type dog { }
+    typemethod dog foo {a} {return "+$a+"}
+
+    dog foo bar
+} -cleanup {
+    dog destroy
+} -result {+bar+}
+
+::tcltest::test etypemethod-1.2 {external typemethods can use typevariables} -body {
+    type dog {
+        typevariable somevar "Howdy"
+    }
+    typemethod dog getvar {} {return $somevar}
+
+    dog getvar
+} -cleanup {
+    dog destroy
+} -result {Howdy}
+
+::tcltest::test etypemethod-1.3 {typemethods can be redefined dynamically} -body {
+    type dog {
+        typemethod foo {} { return "foo" }
+    }
+    set a [dog foo]
+
+    typemethod dog foo {} { return "bar"}
+
+    set b [dog foo]
+
+    list $a $b
+} -cleanup {
+    dog destroy
+} -result {foo bar}
+
+::tcltest::test etypemethod-1.4 {can't define external typemethod if no type} -body {
+    typemethod extremelyraredog foo {} { return "bar"}
+} -returnCodes {
+    error
+} -result {no such type: "extremelyraredog"}
+
+::tcltest::test etypemethod-2.1 {external hierarchical method, two tokens} -body {
+    type dog { }
+    typemethod dog {wag tail} {} {
+        return "wags tail"
+    }
+
+    dog wag tail
+} -cleanup {
+    dog destroy
+} -result {wags tail}
+
+::tcltest::test etypemethod-2.2 {external hierarchical method, three tokens} -body {
+    type dog { }
+    typemethod dog {wag tail proudly} {} {
+        return "wags tail proudly"
+    }
+
+    dog wag tail proudly
+} -cleanup {
+    dog destroy
+} -result {wags tail proudly}
+
+::tcltest::test etypemethod-2.3 {external hierarchical method, three tokens} -body {
+    type dog { }
+    typemethod dog {wag tail really high} {} {
+        return "wags tail really high"
+    }
+
+    dog wag tail really high
+} -cleanup {
+    dog destroy
+} -result {wags tail really high}
+
+::tcltest::test etypemethod-2.4 {redefinition is OK} -body {
+    type dog { }
+    typemethod dog {wag tail} {} {
+        return "wags tail"
+    }
+    typemethod dog {wag tail} {} {
+        return "wags tail briskly"
+    }
+
+    dog wag tail
+} -cleanup {
+    dog destroy
+} -result {wags tail briskly}
+
+::tcltest::test etypemethod-3.1 {prefix/method collision} -body {
+    type dog {
+        typemethod wag {} {}
+    }
+
+    typemethod dog {wag tail} {} {}
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {Cannot define "wag tail", "wag" has no submethods.}
+
+::tcltest::test etypemethod-3.2 {prefix/method collision} -body {
+    type dog {
+        typemethod {wag tail} {} {}
+    }
+
+    typemethod dog wag {} {}
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {Cannot define "wag", "wag" has submethods.}
+
+::tcltest::test etypemethod-3.3 {prefix/method collision} -body {
+    type dog {
+        typemethod {wag tail} {} {}
+    }
+
+    typemethod dog {wag tail proudly} {} {}
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {Cannot define "wag tail proudly", "wag tail" has no submethods.}
+
+::tcltest::test etypemethod-3.4 {prefix/method collision} -body {
+    type dog {
+        typemethod {wag tail proudly} {} {}
+    }
+
+    typemethod dog {wag tail} {} {}
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {Cannot define "wag tail", "wag tail" has submethods.}
+
+
+tcltest::cleanupTests

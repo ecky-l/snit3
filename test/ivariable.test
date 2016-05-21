@@ -1,0 +1,234 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# instance variable
+
+::tcltest::test ivariable-1.1 {myvar qualifies instance variables} -body {
+    type dog {
+        method vname {name} {
+            myvar $name
+        }
+    }
+
+    dog create spot
+    spot vname somevar
+} -cleanup {
+    dog destroy
+} -result {::dog::Snit_inst1::somevar}
+
+::tcltest::test ivariable-1.2 {undefined instance variables are OK} -body {
+    type dog {
+        method setgreeting {value} {
+            variable greeting
+
+            set greeting $value
+        }
+
+        method getgreeting {} {
+            variable greeting
+
+            return $greeting
+        }
+    }
+
+    set spot [dog create spot]
+    spot setgreeting Hey
+
+    dog create fido
+    fido setgreeting Howdy
+
+    list [spot getgreeting] [fido getgreeting] [set ::dog::Snit_inst1::greeting]
+} -cleanup {
+    dog destroy
+} -result {Hey Howdy Hey}
+
+::tcltest::test ivariable-1.3 {instance variables are destroyed automatically} -body {
+    type dog {
+        constructor {args} {
+            variable greeting
+
+            set greeting Hi
+        }
+    }
+
+    dog create spot
+    set g1 $::dog::Snit_inst1::greeting
+
+    spot destroy
+    list $g1 [info exists ::dog::Snit_inst1::greeting]
+} -cleanup {
+    dog destroy
+} -result {Hi 0}
+
+::tcltest::test ivariable-1.4 {defined instance variables need not be declared} -body {
+    type dog {
+        variable greetings
+
+        method put {} {
+            set greetings Howdy
+        }
+
+        method get {} {
+            return $greetings
+        }
+    }
+
+    dog create spot
+    spot put
+    spot get
+} -cleanup {
+    dog destroy
+} -result {Howdy}
+
+::tcltest::test ivariable-1.5 {instance variables can be arrays} -body {
+    type dog {
+        variable greetings
+
+        method fill {} {
+            set greetings(a) Hi
+            set greetings(b) Howdy
+        }
+
+        method vname {} {
+            return [myvar greetings]
+        }
+    }
+
+    dog create spot
+    spot fill
+    list [set [spot vname](a)] [set [spot vname](b)]
+} -cleanup {
+    dog destroy
+} -result {Hi Howdy}
+
+::tcltest::test ivariable-1.6 {instance variables can be initialized in the definition} -body {
+    type dog {
+        variable greetings {Hi Howdy}
+        variable empty {}
+
+        method list {} {
+            list $greetings $empty
+        }
+    }
+
+    dog create spot
+    spot list
+} -cleanup {
+    dog destroy
+} -result {{Hi Howdy} {}}
+
+::tcltest::test ivariable-1.7 {variable is illegal when selfns is undefined} -body {
+    type dog {
+        method caller {} {
+            callee
+        }
+        proc callee {} {
+            variable foo
+        }
+    }
+
+    dog create spot
+
+    spot caller
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {can't read "selfns": no such variable}
+
+::tcltest::test ivariable-1.8 {myvar is illegal when selfns is undefined} -body {
+    type dog {
+        method caller {} {
+            callee
+        }
+        proc callee {} {
+            myvar foo
+        }
+    }
+
+    dog create spot
+
+    spot caller
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {can't read "selfns": no such variable}
+
+::tcltest::test ivariable-1.9 {procs which define selfns see instance variables} -body {
+    type dog {
+        variable greeting Howdy
+
+        method caller {} {
+            return [callee $selfns]
+        }
+
+        proc callee {selfns} {
+            return $greeting
+        }
+    }
+
+    dog create spot
+
+    spot caller
+} -cleanup {
+    dog destroy
+} -result {Howdy}
+
+::tcltest::test ivariable-1.10 {in methods, variable works with fully qualified names} -body {
+    namespace eval ::somenamespace:: {
+        set somevar somevalue
+    }
+
+    type dog {
+        method get {} {
+            variable ::somenamespace::somevar
+            return $somevar
+        }
+    }
+
+    dog create spot
+
+    spot get
+} -cleanup {
+    dog destroy
+} -result {somevalue}
+
+::tcltest::test ivariable-1.11 {variable with too many initializers throws an error} -body {
+    type dog {
+        variable color dark brown
+    }
+} -returnCodes {
+    error
+} -result {Error in "variable color...", too many initializers}
+
+::tcltest::test ivariable-1.12 {variable with too many initializers throws an error} -body {
+    type dog {
+        variable color -array dark brown
+    }
+} -returnCodes {
+    error
+} -result {Error in "variable color...", too many initializers}
+
+::tcltest::test ivariable-1.13 {variable can initialize array variables} -body {
+    type dog {
+        variable data -array {
+            family jones
+            color brown
+        }
+
+        method getdata {item} {
+            return $data($item)
+        }
+    }
+
+    dog spot
+    list [spot getdata family] [spot getdata color]
+} -cleanup {
+    dog destroy
+} -result {jones brown}
+
+
+tcltest::cleanupTests

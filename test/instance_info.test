@@ -1,0 +1,602 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# Instance Introspection
+
+# Case 1
+::tcltest::test iinfo-1.1 {object info too few args} -constraints {
+    snit1
+} -body {
+    type dog { }
+
+    dog create spot
+
+    spot info
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result [tcltest::wrongNumArgs ::snit::RT.method.info {type selfns win self command args} 4]
+
+# Case 2
+::tcltest::test iinfo-1.2 {object info too few args} -constraints {
+    snit2
+} -body {
+    type dog { }
+
+    dog create spot
+
+    spot info
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result [expect \
+	       {wrong # args: should be "spot info command ?arg ...?"} \
+	       {wrong # args: should be "spot info command ..."}]
+
+::tcltest::test iinfo-1.3 {object info too many args} -body {
+    type dog { }
+
+    dog create spot
+
+    spot info type foo
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result [tcltest::tooManyArgs ::snit::RT.method.info.type {type selfns win self}]
+
+::tcltest::test iinfo-2.1 {object info type} -body {
+    type dog { }
+
+    dog create spot
+    spot info type
+} -cleanup {
+    dog destroy
+} -result {::dog}
+
+::tcltest::test iinfo-3.1 {object info typevars} -body {
+    type dog {
+        typevariable thisvar 1
+
+        constructor {args} {
+            typevariable thatvar 2
+        }
+    }
+
+    dog create spot
+    lsort [spot info typevars]
+} -cleanup {
+    dog destroy
+} -result {::dog::thatvar ::dog::thisvar}
+
+::tcltest::test iinfo-3.2 {object info typevars with pattern} -body {
+    type dog {
+        typevariable thisvar 1
+
+        constructor {args} {
+            typevariable thatvar 2
+        }
+    }
+
+    dog create spot
+    spot info typevars *this*
+} -cleanup {
+    dog destroy
+} -result {::dog::thisvar}
+
+::tcltest::test iinfo-4.1 {object info vars} -body {
+    type dog {
+        variable hisvar 1
+
+        constructor {args} {
+            variable hervar
+            set hervar 2
+        }
+    }
+
+    dog create spot
+    lsort [spot info vars]
+} -cleanup {
+    dog destroy
+} -result {::dog::Snit_inst1::hervar ::dog::Snit_inst1::hisvar}
+
+::tcltest::test iinfo-4.2 {object info vars with pattern} -body {
+    type dog {
+        variable hisvar 1
+
+        constructor {args} {
+            variable hervar
+            set hervar 2
+        }
+    }
+
+    dog create spot
+    spot info vars "*his*"
+} -cleanup {
+    dog destroy
+} -result {::dog::Snit_inst1::hisvar}
+
+::tcltest::test iinfo-5.1 {object info no vars defined} -body {
+    type dog { }
+
+    dog create spot
+    list [spot info vars] [spot info typevars]
+} -cleanup {
+    dog destroy
+} -result {{} {}}
+
+::tcltest::test iinfo-6.1 {info options with no options} -body {
+    type dog { }
+    dog create spot
+
+    llength [spot info options]
+} -cleanup {
+    dog destroy
+} -result {0}
+
+::tcltest::test iinfo-6.2 {info options with only local options} -body {
+    type dog {
+        option -foo a
+        option -bar b
+    }
+    dog create spot
+
+    lsort [spot info options]
+} -cleanup {
+    dog destroy
+} -result {-bar -foo}
+
+::tcltest::test iinfo-6.3 {info options with local and delegated options} -body {
+    type dog {
+        option -foo a
+        option -bar b
+        delegate option -quux to sibling
+    }
+    dog create spot
+
+    lsort [spot info options]
+} -cleanup {
+    dog destroy
+} -result {-bar -foo -quux}
+
+::tcltest::test iinfo-6.4 {info options with unknown delegated options} -constraints {
+    tk tcl83
+} -body {
+    widgetadaptor myframe {
+        option -foo a
+        delegate option * to hull
+        constructor {args} {
+            installhull [frame $self]
+        }
+    }
+    myframe .frm
+
+    set a [lsort [.frm info options]]
+    destroy .frm
+    tkbide
+    set a
+} -cleanup {
+    myframe destroy
+} -result {-background -bd -bg -borderwidth -class -colormap -container -cursor -foo -height -highlightbackground -highlightcolor -highlightthickness -relief -takefocus -visual -width}
+
+::tcltest::test iinfo-6.5 {info options with unknown delegated options} -constraints {
+    tk tcl84
+} -body {
+    widgetadaptor myframe {
+        option -foo a
+        delegate option * to hull
+        constructor {args} {
+            installhull [frame $self]
+        }
+    }
+    myframe .frm
+
+    set a [lsort [.frm info options]]
+    destroy .frm
+    tkbide
+    set a
+} -cleanup {
+    myframe destroy
+} -result {-background -bd -bg -borderwidth -class -colormap -container -cursor -foo -height -highlightbackground -highlightcolor -highlightthickness -padx -pady -relief -takefocus -visual -width}
+
+::tcltest::test iinfo-6.6 {info options with exceptions} -constraints {
+    tk tcl83
+} -body {
+    widgetadaptor myframe {
+        option -foo a
+        delegate option * to hull except -background
+        constructor {args} {
+            installhull [frame $self]
+        }
+    }
+    myframe .frm
+
+    set a [lsort [.frm info options]]
+    destroy .frm
+    tkbide
+    set a
+} -cleanup {
+    myframe destroy
+} -result {-bd -bg -borderwidth -class -colormap -container -cursor -foo -height -highlightbackground -highlightcolor -highlightthickness -relief -takefocus -visual -width}
+
+::tcltest::test iinfo-6.7 {info options with exceptions} -constraints {
+    tk tcl84
+} -body {
+    widgetadaptor myframe {
+        option -foo a
+        delegate option * to hull except -background
+        constructor {args} {
+            installhull [frame $self]
+        }
+    }
+    myframe .frm
+
+    set a [lsort [.frm info options]]
+    destroy .frm
+    tkbide
+    set a
+} -cleanup {
+    myframe destroy
+} -result {-bd -bg -borderwidth -class -colormap -container -cursor -foo -height -highlightbackground -highlightcolor -highlightthickness -padx -pady -relief -takefocus -visual -width}
+
+::tcltest::test iinfo-6.8 {info options with pattern} -constraints {
+    tk
+} -body {
+    widgetadaptor myframe {
+        option -foo a
+        delegate option * to hull
+        constructor {args} {
+            installhull [frame $self]
+        }
+    }
+    myframe .frm
+
+    set a [lsort [.frm info options -c*]]
+    destroy .frm
+    tkbide
+    set a
+} -cleanup {
+    myframe destroy
+} -result {-class -colormap -container -cursor}
+
+::tcltest::test iinfo-7.1 {info typemethods, simple case} -body {
+    type dog { }
+
+    dog spot
+
+    lsort [spot info typemethods]
+} -cleanup {
+    dog destroy
+} -result {create destroy info}
+
+::tcltest::test iinfo-7.2 {info typemethods, with pattern} -body {
+    type dog { }
+
+    dog spot
+
+    spot info typemethods i*
+} -cleanup {
+    dog destroy
+} -result {info}
+
+::tcltest::test iinfo-7.3 {info typemethods, with explicit typemethods} -body {
+    type dog {
+        typemethod foo {} {}
+        delegate typemethod bar to comp
+    }
+
+    dog spot
+
+    lsort [spot info typemethods]
+} -cleanup {
+    dog destroy
+} -result {bar create destroy foo info}
+
+::tcltest::test iinfo-7.4 {info typemethods, with implicit typemethods} -body {
+    type dog {
+        delegate typemethod * to comp
+
+        typeconstructor {
+            set comp string
+        }
+    }
+
+    dog create spot
+
+    set a [lsort [spot info typemethods]]
+
+    dog length foo
+    dog is boolean yes
+
+    set b [lsort [spot info typemethods]]
+
+    set c [spot info typemethods len*]
+
+    list $a $b $c
+} -cleanup {
+    dog destroy
+} -result {{create destroy info} {create destroy info is length} length}
+
+::tcltest::test iinfo-7.5 {info typemethods, with hierarchical typemethods} -body {
+    type dog {
+        delegate typemethod {comp foo} to comp
+
+        typemethod {comp bar} {} {}
+    }
+
+    dog create spot
+
+    lsort [spot info typemethods]
+} -cleanup {
+    dog destroy
+} -result {{comp bar} {comp foo} create destroy info}
+
+
+::tcltest::test iinfo-8.1 {info methods, simple case} -body {
+    type dog { }
+
+    dog spot
+
+    lsort [spot info methods]
+} -cleanup {
+    dog destroy
+} -result {destroy info}
+
+::tcltest::test iinfo-8.2 {info methods, with pattern} -body {
+    type dog { }
+
+    dog spot
+
+    spot info methods i*
+} -cleanup {
+    dog destroy
+} -result {info}
+
+::tcltest::test iinfo-8.3 {info methods, with explicit methods} -body {
+    type dog {
+        method foo {} {}
+        delegate method bar to comp
+    }
+
+    dog spot
+
+    lsort [spot info methods]
+} -cleanup {
+    dog destroy
+} -result {bar destroy foo info}
+
+::tcltest::test iinfo-8.4 {info methods, with implicit methods} -body {
+    type dog {
+        delegate method * to comp
+
+        constructor {args} {
+            set comp string
+        }
+    }
+
+    dog create spot
+
+    set a [lsort [spot info methods]]
+
+    spot length foo
+    spot is boolean yes
+
+    set b [lsort [spot info methods]]
+
+    set c [spot info methods len*]
+
+    list $a $b $c
+} -cleanup {
+    dog destroy
+} -result {{destroy info} {destroy info is length} length}
+
+::tcltest::test iinfo-8.5 {info methods, with hierarchical methods} -body {
+    type dog {
+        delegate method {comp foo} to comp
+
+        method {comp bar} {} {}
+    }
+
+    dog create spot
+
+    lsort [spot info methods]
+} -cleanup {
+    dog destroy
+} -result {{comp bar} {comp foo} destroy info}
+
+::tcltest::test iinfo-9.1 {info args} -body {
+    type dog {
+	method bark {volume} {}
+    }
+
+    dog spot
+
+    spot info args bark
+} -cleanup {
+    dog destroy
+} -result {volume}
+
+::tcltest::test iinfo-9.2 {info args, too few args} -body {
+    type dog {
+	method bark {volume} {}
+    }
+
+    dog spot
+
+    spot info args
+} -returnCodes error -cleanup {
+    dog destroy
+} -result [tcltest::wrongNumArgs ::snit::RT.method.info.args {type selfns win self method} 4]
+
+::tcltest::test iinfo-9.3 {info args, too many args} -body {
+    type dog {
+	method bark {volume} {}
+    }
+
+    dog spot
+
+    spot info args bark wag
+} -returnCodes error -cleanup {
+    dog destroy
+} -result [tcltest::tooManyArgs ::snit::RT.method.info.args {type selfns win self method}]
+
+::tcltest::test iinfo-9.4 {info args, unknown method} -body {
+    type dog {
+    }
+
+    dog spot
+
+    spot info args bark
+} -returnCodes error -cleanup {
+    dog destroy
+} -result {Unknown method "bark"}
+
+::tcltest::test iinfo-9.5 {info args, delegated method} -body {
+    type dog {
+	component x
+	delegate method bark to x
+    }
+
+    dog spot
+
+    spot info args bark
+} -returnCodes error -cleanup {
+    dog destroy
+} -result {Delegated method "bark"}
+
+::tcltest::test iinfo-10.1 {info default} -body {
+    type dog {
+	method bark {{volume 50}} {}
+    }
+
+    dog spot
+
+    list [spot info default bark volume def] $def
+} -cleanup {
+    dog destroy
+} -result {1 50}
+
+::tcltest::test iinfo-10.2 {info default, too few args} -body {
+    type dog {
+	method bark {volume} {}
+    }
+
+    dog spot
+
+    spot info default
+} -returnCodes error -cleanup {
+    dog destroy
+} -result [tcltest::wrongNumArgs ::snit::RT.method.info.default {type selfns win self method aname dvar} 4]
+
+::tcltest::test iinfo-10.3 {info default, too many args} -body {
+    type dog {
+	method bark {volume} {}
+    }
+
+    dog spot
+
+    spot info default bark wag def foo
+} -returnCodes error -cleanup {
+    dog destroy
+} -result [tcltest::tooManyArgs ::snit::RT.method.info.default {type selfns win self method aname dvar}]
+
+::tcltest::test iinfo-10.4 {info default, unknown method} -body {
+    type dog {
+    }
+
+    dog spot
+
+    spot info default bark x var
+} -returnCodes error -cleanup {
+    dog destroy
+} -result {Unknown method "bark"}
+
+::tcltest::test iinfo-10.5 {info default, delegated method} -body {
+    type dog {
+	component x
+	delegate method bark to x
+    }
+
+    dog spot
+
+    spot info default bark x var
+} -returnCodes error -cleanup {
+    dog destroy
+} -result {Delegated method "bark"}
+
+::tcltest::test iinfo-11.1 {info body} -body {
+    type dog {
+	typevariable x
+	variable y
+	method bark {volume} {
+	    speaker on
+	    speaker play bark.snd
+	    speaker off
+	}
+    }
+
+    dog spot
+
+    spot info body bark
+} -cleanup {
+    dog destroy
+} -result {
+	    speaker on
+	    speaker play bark.snd
+	    speaker off
+	}
+
+::tcltest::test iinfo-11.2 {info body, too few args} -body {
+    type dog {
+	method bark {volume} {}
+    }
+
+    dog spot
+
+    spot info body
+} -returnCodes error -cleanup {
+    dog destroy
+} -result [tcltest::wrongNumArgs ::snit::RT.method.info.body {type selfns win self method} 4]
+
+::tcltest::test iinfo-11.3 {info body, too many args} -body {
+    type dog {
+	method bark {volume} {}
+    }
+
+    dog spot
+
+    spot info body bark wag
+} -returnCodes error -cleanup {
+    dog destroy
+} -result [tcltest::tooManyArgs ::snit::RT.method.info.body {type selfns win self method}]
+
+::tcltest::test iinfo-11.4 {info body, unknown method} -body {
+    type dog {
+    }
+
+    dog spot
+
+    spot info body bark
+} -returnCodes error -cleanup {
+    dog destroy
+} -result {Unknown method "bark"}
+
+::tcltest::test iinfo-11.5 {info body, delegated method} -body {
+    type dog {
+	component x
+	delegate method bark to x
+    }
+
+    dog spot
+
+    spot info body bark
+} -returnCodes error -cleanup {
+    dog destroy
+} -result {Delegated method "bark"}
+
+
+tcltest::cleanupTests

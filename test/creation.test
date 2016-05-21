@@ -1,0 +1,198 @@
+
+
+#-----------------------------------------------------------------------
+# type creation
+
+::tcltest::test creation-1.1 {type instance names get qualified} -body {
+    type dog { }
+
+    dog create spot
+} -cleanup {
+    dog destroy
+} -result {::spot}
+
+::tcltest::test creation-1.2 {type instance names can be generated} -body {
+    type dog { }
+
+    dog create my%AUTO%
+} -cleanup {
+    dog destroy
+} -result {::mydog1}
+
+::tcltest::test creation-1.3 {"create" method is optional} -body {
+    type dog { }
+
+    dog fido
+} -cleanup {
+    dog destroy
+} -result {::fido}
+
+::tcltest::test creation-1.4 {constructor arg can't be type} -body {
+    type dog {
+        constructor {type} { }
+    }
+} -returnCodes {
+    error
+} -result {constructor's arglist may not contain "type" explicitly}
+
+::tcltest::test creation-1.5 {constructor arg can't be self} -body {
+    type dog {
+        constructor {self} { }
+    }
+} -returnCodes {
+    error
+} -result {constructor's arglist may not contain "self" explicitly}
+
+::tcltest::test creation-1.6 {weird names are OK} -body {
+    # I.e., names with non-identifier characters
+    type confused-dog {
+        method meow {} {
+            return "$self meows."
+        }
+    }
+
+    confused-dog spot
+    spot meow
+} -cleanup {
+    confused-dog destroy
+} -result {::spot meows.}
+
+# Case 1
+::tcltest::test creation-1.7 {If -hasinstances yes, [$type] == [$type create %AUTO%]} -constraints {
+    snit1
+} -body {
+    type dog {
+        variable dummy
+    }
+
+    set mydog [dog]
+} -cleanup {
+    $mydog destroy
+    dog destroy
+} -result {::dog1}
+
+# Case 2
+::tcltest::test creation-1.8 {If -hasinstances yes, [$type] == [$type create %AUTO%]} -constraints {
+    snit2
+} -body {
+    type dog {
+        # WHD: In Snit 1.0, this pragma was not needed.
+        pragma -hastypemethods no
+        variable dummy
+    }
+
+    set mydog [dog]
+} -cleanup {
+    # [dog destroy] doesn't exist
+    $mydog destroy
+    namespace delete ::dog
+} -result {::dog1}
+
+# Case 1
+::tcltest::test creation-1.9 {If -hasinstances no, [$type] != [$type create %AUTO%]} -constraints {
+    snit1
+} -body {
+    type dog {
+        pragma -hasinstances no
+    }
+
+    set mydog [dog]
+} -cleanup {
+    dog destroy
+} -returnCodes {
+    error
+} -result {wrong # args: should be "::dog method args"}
+
+# Case 2
+::tcltest::test creation-1.10 {If -hasinstances no, [$type] != [$type create %AUTO%]} -constraints {
+    snit2
+} -body {
+    type dog {
+        pragma -hasinstances no
+    }
+
+    set mydog [dog]
+} -cleanup {
+    dog destroy
+} -returnCodes {
+    error
+} -result [expect \
+	       {wrong # args: should be "dog subcommand ?arg ...?"} \
+	       {wrong # args: should be "dog subcommand ?argument ...?"}]
+
+# Case 1
+::tcltest::test creation-1.11 {If widget, [$type] != [$type create %AUTO%]} -constraints {
+    snit1 tk
+} -body {
+    widget dog {
+        variable dummy
+    }
+
+    set mydog [dog]
+} -cleanup {
+    dog destroy
+} -returnCodes {
+    error
+} -result {wrong # args: should be "::dog method args"}
+
+# Case 2
+::tcltest::test creation-1.12 {If widget, [$type] != [$type create %AUTO%]} -constraints {
+    snit2 tk
+} -body {
+    widget dog {
+        variable dummy
+    }
+
+    set mydog [dog]
+} -cleanup {
+    dog destroy
+} -returnCodes {
+    error
+} -result [expect \
+	       {wrong # args: should be "dog subcommand ?arg ...?"} \
+	       {wrong # args: should be "dog subcommand ?argument ...?"}]
+
+::tcltest::test creation-1.13 {If -hastypemethods yes, [$type] == [$type create %AUTO%]} -constraints {
+    snit1
+} -body {
+    type dog {
+        variable dummy
+    }
+
+    set mydog [dog]
+} -cleanup {
+    dog destroy
+} -result {::dog1}
+
+::tcltest::test creation-1.14 {If -hastypemethods yes, [$type] != [$type create %AUTO%]} -constraints {
+    snit2
+} -body {
+    type dog {
+        variable dummy
+    }
+
+    set mydog [dog]
+} -cleanup {
+    dog destroy
+} -returnCodes {
+    error
+} -result [expect \
+	       {wrong # args: should be "dog subcommand ?arg ...?"} \
+	       {wrong # args: should be "dog subcommand ?argument ...?"}]
+
+::tcltest::test creation-2.1 {Can't call "destroy" in constructor} -body {
+    type dog {
+        constructor {} {
+            $self destroy
+        }
+    }
+
+    dog spot
+} -cleanup {
+    dog destroy
+} -returnCodes {
+    error
+} -result {Error in constructor: Called 'destroy' method in constructor}
+
+
+tcltest::cleanupTests

@@ -1,0 +1,71 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# destroy
+
+::tcltest::test destroy-1.1 {destroy cleans up the instance} -body {
+    type dog {
+        option -color golden
+    }
+
+    set a [namespace children ::dog::]
+    dog create spot
+    set b [namespace children ::dog::]
+    spot destroy
+    set c [namespace children ::dog::]
+    list $a $b $c [info commands ::dog::spot]
+} -cleanup {
+    dog destroy
+} -result {{} ::dog::Snit_inst1 {} {}}
+
+::tcltest::test destroy-1.2 {incomplete objects are destroyed} -body {
+    array unset ::dog::snit_ivars
+
+    type dog {
+        option -color golden
+
+        constructor {args} {
+            $self configurelist $args
+
+            if {"red" == [$self cget -color]} {
+                error "No Red Dogs!"
+            }
+        }
+    }
+
+    catch {dog create spot -color red} result
+    set names [array names ::dog::snit_ivars]
+    list $result $names [info commands ::dog::spot]
+} -cleanup {
+    dog destroy
+} -result {{Error in constructor: No Red Dogs!} {} {}}
+
+::tcltest::test destroy-1.3 {user-defined destructors are called} -body {
+    type dog {
+        typevariable flag ""
+
+        constructor {args} {
+            set flag "created $self"
+        }
+
+        destructor {
+            set flag "destroyed $self"
+        }
+
+        typemethod getflag {} {
+            return $flag
+        }
+    }
+
+    dog create spot
+    set a [dog getflag]
+    spot destroy
+    list $a [dog getflag]
+} -cleanup {
+    dog destroy
+} -result {{created ::spot} {destroyed ::spot}}
+
+
+tcltest::cleanupTests

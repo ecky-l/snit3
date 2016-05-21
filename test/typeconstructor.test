@@ -1,0 +1,50 @@
+
+
+#-----------------------------------------------------------------------
+# typeconstructor
+
+::tcltest::test typeconstructor-1.1 {a typeconstructor can be defined} -body {
+    type dog {
+        typevariable a
+
+        typeconstructor {
+            set a 1
+        }
+
+        typemethod aget {} {
+            return $a
+        }
+    }
+
+    dog aget
+} -cleanup {
+    dog destroy
+} -result {1}
+
+::tcltest::test typeconstructor-1.2 {only one typeconstructor can be defined} -body {
+    type dog {
+        typevariable a
+
+        typeconstructor {
+            set a 1
+        }
+
+        typeconstructor {
+            set a 2
+        }
+    }
+} -returnCodes error -result {too many typeconstructors}
+
+::tcltest::test typeconstructor-1.3 {type proc is destroyed on error} -body {
+    catch {
+        type dog {
+            typeconstructor {
+                error "Error creating dog"
+            }
+        }
+    } result
+
+    list [namespace exists ::dog] [info commands ::dog]
+} -result {0 {}}
+
+tcltest::cleanupTests

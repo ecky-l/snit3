@@ -1,0 +1,92 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# expose statement
+
+::tcltest::test expose-1.1 {can't expose nothing} -body {
+    type dog {
+	expose
+    }
+} -constraints {
+    snit1
+} -returnCodes {
+    error
+} -result [tcltest::wrongNumArgs ::snit::Comp.statement.expose {component ?as? ?methodname?} 0]
+
+::tcltest::test expose-1.1a {can't expose nothing} -body {
+    type dog {
+	expose
+    }
+} -constraints {
+    snit2
+} -returnCodes {
+    error
+} -result [tcltest::wrongNumArgs expose {component ?as? ?methodname?} 0]
+
+::tcltest::test expose-1.2 {expose a component that's never installed} -body {
+    type dog {
+        expose tail
+    }
+
+    dog fido
+
+    fido tail wag
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {undefined component "tail"}
+
+::tcltest::test expose-1.3 {exposed method returns component command} -body {
+    type tail {  }
+
+    type dog {
+        expose tail
+
+        constructor {} {
+            install tail using tail $self.tail
+        }
+
+        destructor {
+            $tail destroy
+        }
+    }
+
+    dog fido
+
+    fido tail
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {::fido.tail}
+
+::tcltest::test expose-1.4 {exposed method calls component methods} -body {
+    type tail {
+        method wag   {args} {return "wag<$args>"}
+        method droop {}     {return "droop"}
+    }
+
+    type dog {
+        expose tail
+
+        constructor {} {
+            install tail using tail $self.tail
+        }
+
+        destructor {
+            $tail destroy
+        }
+    }
+
+    dog fido
+
+    list [fido tail wag] [fido tail wag abc] [fido tail wag abc def] \
+        [fido tail droop]
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {wag<> wag<abc> {wag<abc def>} droop}
+
+tcltest::cleanupTests

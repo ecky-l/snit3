@@ -1,0 +1,96 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# Macros
+
+::tcltest::test macro-1.1 {can't redefine non-macros} -body {
+    snit::macro method {} {}
+} -returnCodes {
+    error
+} -result {invalid macro name "method"}
+
+::tcltest::test macro-1.2 {can define and use a macro} -body {
+    snit::macro hello {name} {
+        method hello {} "return {Hello, $name!}"
+    }
+
+    type dog {
+        hello World
+    }
+
+    dog spot
+
+    spot hello
+
+} -cleanup {
+    dog destroy
+} -result {Hello, World!}
+
+::tcltest::test macro-1.3 {can redefine macro} -body {
+    snit::macro dup {} {}
+    snit::macro dup {} {}
+
+    set dummy "No error"
+} -result {No error}
+
+::tcltest::test macro-1.4 {can define macro in namespace} -body {
+    snit::macro ::test::goodbye {name} {
+        method goodbye {} "return {Goodbye, $name!}"
+    }
+
+    type dog {
+        ::test::goodbye World
+    }
+
+    dog spot
+
+    spot goodbye
+} -cleanup {
+    dog destroy
+} -result {Goodbye, World!}
+
+::tcltest::test macro-1.5 {_proc and _variable are defined} -body {
+    snit::macro testit {} {
+        set a [info commands _variable]
+        set b [info commands _proc]
+        method testit {} "list $a $b"
+    }
+
+    type dog {
+        testit
+    }
+
+    dog spot
+
+    spot testit
+} -cleanup {
+    dog destroy
+} -result {_variable _proc}
+
+::tcltest::test macro-1.6 {_variable works} -body {
+    snit::macro test1 {} {
+        _variable myvar "_variable works"
+    }
+
+    snit::macro test2 {} {
+        _variable myvar
+
+        method testit {} "return {$myvar}"
+    }
+
+    type dog {
+        test1
+        test2
+    }
+
+    dog spot
+
+    spot testit
+} -cleanup {
+    dog destroy
+} -result {_variable works}
+
+
+tcltest::cleanupTests

@@ -1,0 +1,85 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# Typevariables, Variables, Typecomponents, Components
+
+::tcltest::test typevar_var-1.1 {variable/typevariable collisions not allowed: order 1} -body {
+    type dog {
+        typevariable var
+        variable var
+    }
+} -returnCodes {
+    error
+} -result {Error in "variable var...", "var" is already a typevariable}
+
+::tcltest::test typevar_var-1.2 {variable/typevariable collisions not allowed: order 2} -body {
+    type dog {
+        variable var
+        typevariable var
+    }
+} -returnCodes {
+    error
+} -result {Error in "typevariable var...", "var" is already an instance variable}
+
+::tcltest::test typevar_var-1.3 {component/typecomponent collisions not allowed: order 1} -body {
+    type dog {
+        typecomponent comp
+        component comp
+    }
+} -returnCodes {
+    error
+} -result {Error in "component comp...", "comp" is already a typevariable}
+
+::tcltest::test typevar_var-1.4 {component/typecomponent collisions not allowed: order 2} -body {
+    type dog {
+        component comp
+        typecomponent comp
+    }
+} -returnCodes {
+    error
+} -result {Error in "typecomponent comp...", "comp" is already an instance variable}
+
+::tcltest::test typevar_var-1.5 {can't delegate options to typecomponents} -body {
+    type dog {
+        typecomponent comp
+
+        delegate option -opt to comp
+    }
+} -returnCodes {
+    error
+} -result {Error in "delegate option -opt...", "comp" is already a typevariable}
+
+::tcltest::test typevar_var-1.6 {can't delegate typemethods to instance components} -body {
+    type dog {
+        component comp
+
+        delegate typemethod foo to comp
+    }
+} -returnCodes {
+    error
+} -result {Error in "delegate typemethod foo...", "comp" is already an instance variable}
+
+::tcltest::test typevar_var-1.7 {can delegate methods to typecomponents} -body {
+    proc echo {args} {return [join $args "|"]}
+
+    type dog {
+        typecomponent tail
+
+        typeconstructor {
+            set tail echo
+        }
+
+        delegate method wag to tail
+    }
+
+    dog spot
+    spot wag briskly
+} -cleanup {
+    dog destroy
+    rename echo ""
+} -result {wag|briskly}
+
+
+tcltest::cleanupTests

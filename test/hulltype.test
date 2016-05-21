@@ -1,0 +1,80 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# hulltype statement
+
+::tcltest::test hulltype-1.1 {can't set hulltype for snit::types} -body {
+    type dog {
+        hulltype Dog
+    }
+} -returnCodes {
+    error
+} -result {hulltype cannot be set for snit::types}
+
+::tcltest::test hulltype-1.2 {can't set hulltype for snit::widgetadaptors} -constraints {
+    tk
+} -body {
+    widgetadaptor dog {
+        hulltype Dog
+    }
+} -returnCodes {
+    error
+} -result {hulltype cannot be set for snit::widgetadaptors}
+
+::tcltest::test hulltype-1.3 {hulltype can be frame} -constraints {
+    tk
+} -body {
+    widget dog {
+        delegate option * to hull
+        hulltype frame
+    }
+
+    dog .fido
+    catch {.fido configure -use} result
+    destroy .fido
+    tkbide
+
+    set result
+} -cleanup {
+    dog destroy
+} -result {unknown option "-use"}
+
+::tcltest::test hulltype-1.4 {hulltype can be toplevel} -constraints {
+    tk
+} -body {
+    widget dog {
+        delegate option * to hull
+        hulltype toplevel
+    }
+
+    dog .fido
+    catch {.fido configure -use} result
+    destroy .fido
+    tkbide
+
+    set result
+} -cleanup {
+    dog destroy
+} -result {-use use Use {} {}}
+
+::tcltest::test hulltype-1.5 {hulltype can only be defined once} -constraints {
+    tk
+} -body {
+    widget dog {
+        hulltype frame
+        hulltype toplevel
+    }
+} -returnCodes {
+    error
+} -result {too many hulltype statements}
+
+::tcltest::test hulltype-2.1 {list of valid hulltypes} -constraints {
+    tk
+} -body {
+    lsort $::snit::hulltypes
+} -result {frame labelframe tk::frame tk::labelframe tk::toplevel toplevel ttk::frame ttk::labelframe}
+
+
+tcltest::cleanupTests

@@ -1,0 +1,114 @@
+
+
+
+#-----------------------------------------------------------------------
+# Configure cache
+
+::tcltest::test configurecache-1.1 {Instance rename invalidates cache} -body {
+    type dog {
+        option -foo -default bar -configuremethod setfoo
+
+        method setfoo {option value} {
+            $self setoption $option $value
+        }
+
+        method setoption {option value} {
+            set options($option) $value
+        }
+    }
+
+    # Set the option on creation; this will cache the
+    # configure command.
+    dog fido -foo quux
+
+    rename fido spot
+
+    spot configure -foo baz
+    spot cget -foo
+} -cleanup {
+    dog destroy
+} -result {baz}
+
+::tcltest::test configurecache-1.2 {Component rename invalidates cache} -body {
+    type tail {
+        option -foo bar
+    }
+
+    type dog {
+        delegate option -foo to tail
+
+        constructor {args} {
+            set tail [tail thistail]
+            $self configurelist $args
+        }
+
+        method retail {} {
+            # Give it a new component
+            set tail [tail thattail]
+        }
+    }
+
+    # Set the tail's -foo, and cache the command.
+    dog fido -foo quux
+
+    # Invalidate the cache
+    fido retail
+
+    # Should recache, and set the new tail's option.
+    fido configure -foo baz
+
+    fido cget -foo
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {baz}
+
+# Case 1
+::tcltest::test configurecache-1.3 {Invalid -configuremethod causes error} -constraints {
+    snit1
+} -body {
+    type dog {
+        option -foo -default bar -configuremethod bogus
+    }
+
+    dog fido
+    fido configure -foo quux
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {can't configure -foo, "::fido bogus" is not defined}
+
+# Case 2
+::tcltest::test configurecache-1.4 {Invalid -configuremethod causes error} -constraints {
+    snit2
+} -body {
+    type dog {
+        option -foo -default bar -configuremethod bogus
+    }
+
+    dog fido
+    fido configure -foo quux
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {unknown subcommand "bogus": must be configure, or configurelist}
+
+::tcltest::test configurecache-1.5 {hierarchical -configuremethod} -body {
+    type dog {
+        option -foo -default bar -configuremethod {Set Opt}
+
+        method {Set Opt} {option value} {
+            set options($option) Dummy
+        }
+    }
+
+    dog fido -foo NotDummy
+    fido cget -foo
+} -cleanup {
+    dog destroy
+} -result {Dummy}
+
+
+tcltest::cleanupTests

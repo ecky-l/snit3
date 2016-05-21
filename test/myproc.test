@@ -1,0 +1,67 @@
+
+
+
+#-----------------------------------------------------------------------
+# myproc
+
+::tcltest::test myproc-1.1 {myproc qualifies proc names} -body {
+    type dog {
+        proc foo {} {}
+
+        typemethod getit {} {
+            return [myproc foo]
+        }
+    }
+
+    dog getit
+} -cleanup {
+    dog destroy
+} -result {::dog::foo}
+
+::tcltest::test myproc-1.2 {myproc adds arguments} -body {
+    type dog {
+        proc foo {} {}
+
+        typemethod getit {} {
+            return [myproc foo "a b"]
+        }
+    }
+
+    dog getit
+} -cleanup {
+    dog destroy
+} -result {::dog::foo {a b}}
+
+::tcltest::test myproc-1.3 {myproc adds arguments} -body {
+    type dog {
+        proc foo {} {}
+
+        typemethod getit {} {
+            return [myproc foo "a b" c d]
+        }
+    }
+
+    dog getit
+} -cleanup {
+    dog destroy
+} -result {::dog::foo {a b} c d}
+
+::tcltest::test myproc-1.4 {procs with selfns work} -body {
+    type dog {
+        variable datum foo
+
+        method qualify {} {
+            return [myproc getdatum $selfns]
+        }
+        proc getdatum {selfns} {
+            return $datum
+        }
+    }
+    dog create spot
+    eval [spot qualify]
+} -cleanup {
+    dog destroy
+} -result {foo}
+
+
+tcltest::cleanupTests

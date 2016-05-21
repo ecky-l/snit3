@@ -1,0 +1,45 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# from
+
+::tcltest::test from-1.1 {getting default values} -body {
+    type dog {
+        option -foo FOO
+        option -bar BAR
+
+        constructor {args} {
+            $self configure -foo  [from args -foo AAA]
+            $self configure -bar  [from args -bar]
+        }
+    }
+
+    dog create spot
+    list [spot cget -foo] [spot cget -bar]
+} -cleanup {
+    dog destroy
+} -result {AAA BAR}
+
+::tcltest::test from-1.2 {getting non-default values} -body {
+    type dog {
+        option -foo FOO
+        option -bar BAR
+        option -args
+
+        constructor {args} {
+            $self configure -foo [from args -foo]
+            $self configure -bar [from args -bar]
+            $self configure -args $args
+        }
+    }
+
+    dog create spot -foo quux -baz frobnitz -bar frobozz
+    list [spot cget -foo] [spot cget -bar] [spot cget -args]
+} -cleanup {
+    dog destroy
+} -result {quux frobozz {-baz frobnitz}}
+
+
+tcltest::cleanupTests

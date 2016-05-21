@@ -1,0 +1,48 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# Namespace path
+
+::tcltest::test nspath-1.1 {Typemethods call commands from parent namespace} -constraints {
+    snit2
+} -body {
+    namespace eval ::snit_test:: {
+        proc bark {} {return "[namespace current]: Woof"}
+    }
+
+    snit::type ::snit_test::dog {
+        typemethod bark {} {
+            bark
+        }
+    }
+
+    ::snit_test::dog bark
+} -cleanup {
+    ::snit_test::dog destroy
+    namespace forget ::snit_test
+} -result {::snit_test: Woof}
+
+::tcltest::test nspath-1.2 {Methods can call commands from parent namespace} -constraints {
+    snit2
+} -body {
+    namespace eval ::snit_test:: {
+        proc bark {} {return "[namespace current]: Woof"}
+    }
+
+    snit::type ::snit_test::dog {
+        method bark {} {
+            bark
+        }
+    }
+
+    ::snit_test::dog spot
+    spot bark
+} -cleanup {
+    ::snit_test::dog destroy
+    namespace forget ::snit_test
+} -result {::snit_test: Woof}
+
+
+tcltest::cleanupTests
