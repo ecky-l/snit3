@@ -81,34 +81,14 @@ namespace export type
         set _Defaults {}
         set _SetGet {}
         
-        set cmdList {variable constructor method}
-        foreach {c} $cmdList {
-            set tkn_[set c] {}
-        }
-        try {
-            foreach {cmd} $cmdList {
-                rename ::oo::define::[set cmd] ::oo::define::__[set cmd]__
-                set tkn_[set cmd] [interp alias {} ::oo::define::[set cmd] {} \
-                    [self] [string toupper $cmd 0]]
-            }
-            oo::define [self class] export {*}[lmap x $cmdList {string tou $x 0}]
-            
-            next {*}$args
-            
-        } finally {
-            foreach {cmd} $cmdList {
-                set xx [set tkn_[set cmd]]
-                if {$xx == {}} {
-                    continue
-                }
-                interp alias {} $xx {}
-                rename ::oo::define::__[set cmd]__ ::oo::define::[set cmd]
-            }
-            ::oo::define [self class] unexport {*}[lmap x $cmdList {string tou $x 0}]
-        }
-        
         ::oo::define [self] variable self
         ::oo::define [self] mixin ::snit::snitmethods
+        
+        set ns [self namespace]::define
+        foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
+            interp alias {} ${ns}::$cmd {} [self] $cmd
+        }
+        namespace eval $ns {*}$args 
     }
     
     ## \brief install variable defaults in case there is no
@@ -123,80 +103,6 @@ namespace export type
         set obj [next {*}$args]
         my InstallVars $obj [self] {*}[info class variables [self]]
         return $obj
-    }
-    
-    ## \brief Defines the constructor and installs variables
-    #
-    # Prepend some code in front of the constructor body, which takes the
-    # vars from the class definition and installs the corresponding defaults
-    # into the newly created object.
-    # If a constructor is defined, it needs access to the variables and defaults.
-    # Prepend code to install the variables in front of the constructor body, so
-    # that the variable defaults are installed first, before anything else. 
-    method Constructor {args} {
-        if {[info obj class [self]] eq "::snit::type"} {
-            append cbody apply " \{ " 
-            append cbody [info cl definition [self class] InstallVars] \n " \}"
-            append cbody " " {[self] [self class] {*}[info class variables [self class]]} 
-            append cbody [lindex $args 1]
-            ::oo::define [self] __constructor__ [lindex $args 0] $cbody
-        } else {
-            ::oo::define [self] __constructor__ {*}$args
-        }
-    }
-    
-    ## \brief The Variable with default command.
-    #
-    # Is executed with a definition script after [create] (from the 
-    # constructor) or with calls to oo::define <cls> (variable). 
-    # Arranges for the default to be installed in all existing 
-    # or new instances of this class.
-    # For private and protected variables there is additional support
-    # for automatic getter and setter generation. If one or both of
-    # the switches {-set, -get} are in the arguments after the value,
-    # methods {"setVarname", "getVarname"} are created. The name is
-    # constructed from the varname (uppercase first letter for 
-    # peotected, underscore _ for private). This happens only if there
-    # are no methods of the same name already defined.
-    method Variable {args} {
-        ::oo::define [self] __variable__ [lindex $args 0]
-        if {[llength $args] >= 2} {
-            dict set _Defaults [lindex $args 0] [lrange $args 1 end]
-        }
-        
-        # install getters and setters for private/protected variables
-        set vn [string index [lindex $args 0] 0]
-        if {[string match $vn _] || [string is upper $vn] 
-                && [llength $args] >=3} {
-            set rem [lrange $args 2 end]
-            set varName [lindex $args 0]
-            if {[lsearch $rem -get] >= 0 && 
-                    [lsearch [info cl methods [self]] get[set varName]] < 0} {
-                ::oo::define [self] method \
-                    get[set varName] {} " return \$$varName "
-            }
-            if {[lsearch $rem -set] >= 0 &&
-                    [lsearch [info cl methods [self]] set[set varName]] < 0} {
-                ::oo::define [self] method \
-                    set[set varName] {value} " set $varName \$value "
-            }
-        }
-        
-        lmap o [info class inst [self]] {
-            my InstallVars $o [self] [lindex $args 0]
-        }
-        return
-    }
-    
-    ## \brief The method command that is used while the type is constructed
-    method Method {mName argsList mBody} {
-        if {[lsearch $argsList self] >= 0} {
-            throw SNIT_METHOD_WRONG_ARG "method $mName's arglist may not contain \"self\" explicitly"
-        }
-        if {[lsearch $argsList type] >= 0} {
-            throw SNIT_METHOD_WRONG_ARG "method $mName's arglist may not contain \"type\" explicitly"
-        }
-        ::oo::define [self] __method__ $mName $argsList $mBody
     }
     
     ## \brief Checks whether there is a default value.
@@ -226,7 +132,77 @@ namespace export type
         namespace eval $ns [list variable self $obj]
     }
     
-} ;# defaultvars
+} ;# class snit::type
+
+foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
+    ::oo::define ::snit::type method $cmd {args} [concat {::oo::define [self]} $cmd {{*}$args}]
+}
+
+## \brief Defines the constructor and installs variables
+#
+# Prepend some code in front of the constructor body, which takes the vars from the class 
+# definition and installs the corresponding defaults into the newly created object. If a 
+# constructor is defined, it needs access to the variables and defaults. Prepend code to 
+# install the variables in front of the constructor body, so that the variable defaults 
+# are installed first, before anything else. 
+::oo::define ::snit::type method constructor {args} {
+    append cbody apply " \{ " 
+    append cbody [info cl definition [self class] InstallVars] \n " \}"
+    append cbody " " {[self] [self class] {*}[info class variables [self class]]} 
+    append cbody [lindex $args 1]
+    ::oo::define [self] constructor [lindex $args 0] $cbody
+}
+
+## \brief The Variable with default command.
+#
+# Is executed with a definition script after [create] (from the constructor) or with calls 
+# to oo::define <cls> (variable). Arranges for the default to be installed in all existing 
+# or new instances of this class. For private and protected variables there is additional 
+# support for automatic getter and setter generation. If one or both of the switches {-set, -get} 
+# are in the arguments after the value, methods {"setVarname", "getVarname"} are created. The 
+# name is constructed from the varname (uppercase first letter for protected, underscore _ 
+# for private). This happens only if there are no methods of the same name already defined.
+::oo::define ::snit::type method variable {args} {
+    ::oo::define [self] variable [lindex $args 0]
+    if {[llength $args] >= 2} {
+        dict set _Defaults [lindex $args 0] [lrange $args 1 end]
+    }
+    
+    # install getters and setters for private/protected variables
+    set vn [string index [lindex $args 0] 0]
+    if {[string match $vn _] || [string is upper $vn] 
+            && [llength $args] >=3} {
+        set rem [lrange $args 2 end]
+        set varName [lindex $args 0]
+        if {[lsearch $rem -get] >= 0 && 
+                [lsearch [info cl methods [self]] get[set varName]] < 0} {
+            ::oo::define [self] method \
+                get[set varName] {} " return \$$varName "
+        }
+        if {[lsearch $rem -set] >= 0 &&
+                [lsearch [info cl methods [self]] set[set varName]] < 0} {
+            ::oo::define [self] method \
+                set[set varName] {value} " set $varName \$value "
+        }
+    }
+    
+    lmap o [info class inst [self]] {
+        my InstallVars $o [self] [lindex $args 0]
+    }
+    return
+}
+
+## \brief The method command that is used while the type is constructed
+::oo::define ::snit::type method method {mName argsList mBody} {
+    if {[lsearch $argsList self] >= 0} {
+        throw SNIT_METHOD_WRONG_ARG "method $mName's arglist may not contain \"self\" explicitly"
+    }
+    if {[lsearch $argsList type] >= 0} {
+        throw SNIT_METHOD_WRONG_ARG "method $mName's arglist may not contain \"type\" explicitly"
+    }
+    ::oo::define [self] method $mName $argsList $mBody
+}
+
 
 ::oo::objdefine ::snit::type method unknown {clName args} {
     if {[llength $args] > 1} {
@@ -236,5 +212,6 @@ namespace export type
 }
 
 } ;# namespace ::snit
+
 
 package provide snit 3.0.0

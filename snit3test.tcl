@@ -6,8 +6,8 @@ if {[lsearch $auto_path $libDir] < 0} {
 
 package require snit 3.0.0
 
+
 ::snit::type a {
-    
     variable prop x
     
     constructor {args} {
@@ -19,13 +19,14 @@ package require snit 3.0.0
     }
 }
 
+
 snit::type c {
     variable bulla 45
     
 }
 
-#oo::class create b {
-#    constructor {args} {
-#        puts yay
-#    }
-#}
+oo::class create b {
+    constructor {args} {
+        puts yay
+    }
+}
