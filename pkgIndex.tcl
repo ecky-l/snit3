@@ -9,3 +9,5 @@
 # full path name of this file's directory.
 
 package ifneeded snit 3.0.0 [list source [file join $dir snit3.tcl]]
+package ifneeded snit::common 3.0.0 [list source [file join $dir snit_common.tcl]]
+package ifneeded snit::type 3.0.0 [list source [file join $dir snit_type.tcl]]

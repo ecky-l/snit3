@@ -11,14 +11,14 @@ package require snit 3.0.0
     variable prop x
     variable bah c
     
-    option -opt -default ha
+    option -opt -default ha -validatemethod moo
     
     constructor {args} {
         puts [self],$self,$args,$prop
     }
     
     method jaja {selfi args} {
-        puts hahaha
+        puts hahaha,$options(-opt)
     }
 }
 
