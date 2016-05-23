@@ -9,6 +9,7 @@ package require snit 3.0.0
 
 ::snit::type a {
     variable prop x
+    variable bah c
     
     constructor {args} {
         puts [self],$self,$args,$prop

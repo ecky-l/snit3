@@ -73,15 +73,19 @@ namespace export type
 # in derived classes (but not in mixins)
 ::oo::class create type {
     superclass ::oo::class
-    variable _Defaults
+    
+    variable _VarDefaults
+    variable _OptionDefaults
     variable _SetGet
     
     ## \brief Installs handlers for oo::define before creating the class
     constructor {args} {
-        set _Defaults {}
+        set _VarDefaults {}
+        set _OptionDefaults {}
         set _SetGet {}
         
         ::oo::define [self] variable self
+        ::oo::define [self] variable options
         ::oo::define [self] mixin ::snit::snitmethods
         
         set ns [self namespace]::define
@@ -111,8 +115,8 @@ namespace export type
     # Otherwise leaves valPtr as it is and returns false.
     method varDefault {var valPtr} {
         upvar $valPtr val
-        if {[dict exists $_Defaults $var]} {
-            set val [dict get $_Defaults $var]
+        if {[dict exists $_VarDefaults $var]} {
+            set val [dict get $_VarDefaults $var]
             return 1
         }
         return 0
@@ -130,6 +134,10 @@ namespace export type
             }
         }
         namespace eval $ns [list variable self $obj]
+    }
+    
+    method InstallOptions {obj cls args} {
+        set ns [info obj namespace $obj]
     }
     
 } ;# class snit::type
@@ -165,7 +173,7 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
 ::oo::define ::snit::type method variable {args} {
     ::oo::define [self] variable [lindex $args 0]
     if {[llength $args] >= 2} {
-        dict set _Defaults [lindex $args 0] [lrange $args 1 end]
+        dict set _VarDefaults [lindex $args 0] [lrange $args 1 end]
     }
     
     # install getters and setters for private/protected variables
@@ -203,6 +211,10 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
     ::oo::define [self] method $mName $argsList $mBody
 }
 
+## \brief The options
+::oo::define ::snit::type method option {name args} {
+    
+}
 
 ::oo::objdefine ::snit::type method unknown {clName args} {
     if {[llength $args] > 1} {
