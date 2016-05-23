@@ -92,6 +92,12 @@ namespace export type
         foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
             interp alias {} ${ns}::$cmd {} [self] $cmd
         }
+        
+        set cmdList { option }
+        foreach {cmd} $cmdList {
+            interp alias {} ${ns}::$cmd {} [self] $cmd
+        }
+        
         namespace eval $ns {*}$args 
     }
     
@@ -213,7 +219,7 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
 
 ## \brief The options
 ::oo::define ::snit::type method option {name args} {
-    
+    puts bla,$name,$args
 }
 
 ::oo::objdefine ::snit::type method unknown {clName args} {
