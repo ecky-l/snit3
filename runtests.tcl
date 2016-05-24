@@ -11,6 +11,7 @@ tcltest::configure -verbose {pass error line} \
     -testdir [file join [file dirname [file normalize [info script]]] test]
 tcltest::configure -file {
     methods.test
+    options.test
 }
 
 tcltest::runAllTests

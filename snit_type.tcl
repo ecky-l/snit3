@@ -53,16 +53,29 @@ namespace export type
     method new {args} {
         set obj [next {*}$args]
         my InstallVars $obj [self] {*}[info class variables [self]]
+        my InstallOptions $obj [self] {*}[dict keys $_Options]
+        my Construct $obj {*}$args
         return $obj
     }
     
     ## \brief create named or local objects 
-    method create {args} {
-        set obj [next {*}$args]
-        my InstallVars $obj [self] {*}[info class variables [self]]
-        my InstallOptions $obj [self] {*}[dict keys $_Options]
+    method create {name args} {
+        set obj [next $name {*}$args]
+        try {
+            my InstallVars $obj [self] {*}[info class variables [self]]
+            my InstallOptions $obj [self] {*}[dict keys $_Options]
+            my Construct $obj {*}$args
+        } trap {} {err errOpts} {
+            $obj destroy
+            throw [dict get $errOpts -errorcode] $err
+        }
         # TODO configure options if no constructor
         return $obj
+    }
+    
+    ## \brief unknown dispatches to create
+    method unknown {args} {
+        uplevel [self] create $args
     }
     
     ## \brief Checks whether there is a default value.
@@ -76,6 +89,16 @@ namespace export type
             return 1
         }
         return 0
+    }
+    
+    ## \brief return the default, resource and class for options
+    method optionDefaults {obj args} {
+        lmap x $args {
+            concat $x [dict get $_Options $x resource] \
+                [dict get $_Options $x class] \
+                    [dict get $_Options $x default] \
+                        [$obj cget $x]
+        }
     }
     
     ## \brief Installs variables from the args list in an object obj.
@@ -107,6 +130,16 @@ namespace export type
         }
     }
     
+    ## \brief Construct an object.
+    # 
+    # This is redefined as the real constructor via the corresponding constructor
+    # keyword. The trick is that before running the constructor, the options and
+    # variables must be installed. Therefore this one is called after installing
+    # options and variables in the create and new method.
+    method Construct {obj args} {
+        $obj configure {*}$args
+    }
+    
 } ;# class snit::type
 
 foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
@@ -120,13 +153,8 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
 # constructor is defined, it needs access to the variables and defaults. Prepend code to 
 # install the variables in front of the constructor body, so that the variable defaults 
 # are installed first, before anything else. 
-::oo::define ::snit::type method constructor {args} {
-    # TODO install options array to make it available in constructor
-    append cbody apply " \{ " 
-    append cbody [info cl definition [self class] InstallVars] \n " \}"
-    append cbody " " {[self] [self class] {*}[info class variables [self class]]} 
-    append cbody [lindex $args 1]
-    ::oo::define [self] constructor [lindex $args 0] $cbody
+::oo::define ::snit::type method constructor {argsList body} {
+    ::oo::define [self] method Construct [concat obj $argsList] $body
 }
 
 ## \brief The Variable with default command.
@@ -186,6 +214,9 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
     set class [string tou $resource 0]
     if {[llength $namespec] == 3} {
         lassign $namespec name resource class
+    } elseif {[llength $namespec] == 2} {
+        lassign $namespec name resource
+        set class [string tou $resource 0]
     } elseif {[llength $namespec] != 1} {
         throw SNIT_OPTION_WRONG_NAMESPEC "option namespec must have one or three components"
     }
@@ -206,6 +237,7 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
     }
     
     # parse remaining arguments
+    dict set _Options $name [list resource $resource class $class]
     set validArgs { -default -readonly -type -cgetmethod -configuremethod -validatemethod }
     foreach {a v} $args {
         if {$a ni $validArgs} {
@@ -220,6 +252,7 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
     return
 }
 
+## \brief The unknown method dispatches to create
 ::oo::objdefine ::snit::type method unknown {clName args} {
     if {[llength $args] > 1} {
         error "usage ::snit::type <name> <script>"

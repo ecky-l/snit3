@@ -1,4 +1,13 @@
 
+set libDir [file normalize [file join [file dirname [info script]] ..]]
+if {[lsearch $auto_path $libDir] < 0} {
+    lappend auto_path $libDir
+}
+
+package require tcltest
+package require snit 3.0.0
+
+namespace import ::snit::*
 
 
 #-----------------------------------------------------------------------
@@ -99,7 +108,7 @@
     error
 } -cleanup {
     dog destroy
-} -result {unknown option "-colour"}
+} -result {Error in "::spot cget -colour...": No such option -colour}
 
 ::tcltest::test option-1.8 {undefined option: configure} -body {
     type dog {
@@ -113,7 +122,7 @@
     error
 } -cleanup {
     dog destroy
-} -result {unknown option "-colour"}
+} -result {Error in "::spot configure -colour...": No such option -colour}
 
 ::tcltest::test option-1.9 {options default to ""} -body {
     type dog {
@@ -159,7 +168,7 @@
     spot configure
 } -cleanup {
     dog destroy
-} -result {{-color color Color black red} {-akc akc Akc 1 0}}
+} -result {{-akc akc Akc 1 0} {-color color Color black red}}
 
 ::tcltest::test option-2.2 {configure -opt returns info, local options only} -body {
     type dog {
@@ -397,7 +406,7 @@
     }
 } -returnCodes {
     error
-} -result {Error in "option {"-with space"}...", badly named option "-with space"}
+} -result {Error in "option "-with space"...", badly named option ""-with space""}
 
 ::tcltest::test option-4.4 {delegated option name must begin with hyphen} -body {
     type dog {

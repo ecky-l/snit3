@@ -12,6 +12,7 @@ package require snit 3.0.0
     variable bah c
     
     option -opt -default ha -validatemethod moo
+    option -blubb moo
     
     constructor {args} {
         puts [self],$self,$args,$prop
