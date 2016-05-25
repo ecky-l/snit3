@@ -18,10 +18,12 @@ package require snit 3.0.0
     
     constructor {args} {
         puts [self],$self,$args,$prop
+        install x y z
     }
     
     method jaja {selfi args} {
         puts hahaha,$options(-opt)
+        install a b c
     }
     
     proc ttt {args} {

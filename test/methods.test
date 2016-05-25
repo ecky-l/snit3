@@ -87,7 +87,7 @@ tcltest::test method-1.5 {unknown methods get an error} -body {
     dog destroy
 } -returnCodes {
     error
-} -result {unknown method "chase": must be cget, configure, destroy or info}
+} -result {unknown method "chase": must be cget, configure, destroy, info or install}
 
 tcltest::test method-1.7 {info type method returns the object's type} -body {
     type dog { }
