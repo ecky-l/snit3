@@ -275,6 +275,10 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
     uplevel ::snit::type create $clName $args
 }
 
+## \brief snit::method to redefine methods, constructors, destructors etc.
+#
+# A wrapper around the specialized methods in snit::type definition (see above),
+# but must be applied a little different than just by method call.
 proc method {class name args} {
     set ns [info object namespace $class]::define
     switch -- $name {
