@@ -14,12 +14,18 @@ package require snit 3.0.0
     option -opt -default ha -validatemethod moo
     option -blubb moo
     
+    delegate method fuck to what
+    
     constructor {args} {
         puts [self],$self,$args,$prop
     }
     
     method jaja {selfi args} {
         puts hahaha,$options(-opt)
+    }
+    
+    proc ttt {args} {
+        puts ttt
     }
 }
 

@@ -86,7 +86,6 @@ namespace eval ::snit {
     }
 }
 
-    
 } ;# namespace snit
 
 package provide snit::common 3.0.0

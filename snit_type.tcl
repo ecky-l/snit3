@@ -41,7 +41,7 @@ namespace export type
             interp alias {} ${ns}::$cmd {} [self] $cmd
         }
         
-        set cmdList { option }
+        set cmdList { option delegate }
         foreach {cmd} $cmdList {
             interp alias {} ${ns}::$cmd {} [self] $cmd
         }
@@ -137,7 +137,9 @@ namespace export type
     # variables must be installed. Therefore this one is called after installing
     # options and variables in the create and new method.
     method Construct {obj args} {
-        $obj configure {*}$args
+        if {[llength $args] > 0} {
+            $obj configure {*}$args
+        }
     }
     
 } ;# class snit::type
@@ -246,10 +248,23 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
         dict set _Options $name [string range $a 1 end] $v
     }
     
-    lmap o [info class inst [self]] {
-        my InstallOptions $o [self] $name
-    }
+    lmap o [info class inst [self]] {my InstallOptions $o [self] $name}
     return
+}
+
+::oo::define ::snit::type method delegate {what namespec args} {
+    switch -- $what {
+    method {
+        
+    }
+    option {
+    }
+    typemethod {
+    }
+    default {
+        throw SNIT_DELEGATE_WRONG_TYPE "Error in \"delegate $what $namespec...\", \"${what}\"?"
+    }
+    }
 }
 
 ## \brief The unknown method dispatches to create
@@ -259,7 +274,19 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
     }
     uplevel ::snit::type create $clName $args
 }
-    
+
+proc method {class name args} {
+    set ns [info object namespace $class]::define
+    switch -- $name {
+    constructor - destructor {
+        namespace eval $ns $name $args
+    }
+    default {
+        namespace eval $ns method $name $args
+    }
+    }
+    return
+}
 
 } ;# namespace snit
 
