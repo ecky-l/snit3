@@ -14,11 +14,11 @@ package require snit 3.0.0
     option -opt -default ha -validatemethod moo
     option -blubb moo
     
-    delegate method fuck to what
+    delegate method this to that
     
     constructor {args} {
-        puts [self],$self,$args,$prop
-        install x y z
+        puts $self,$args
+        #install x y z
     }
     
     method jaja {selfi args} {

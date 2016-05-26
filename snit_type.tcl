@@ -89,17 +89,21 @@ namespace export type
     ## \brief The install method for components
     method install {args} {
         my variable self
-        puts muahaha,$args
     }
     
-    ## \brief default constructor
+    ## \brief Construct an object.
+    # 
+    # This is redefined as the real constructor via the corresponding constructor
+    # keyword. The trick is that before running the constructor, the options and
+    # variables must be installed. Therefore this one is called after installing
+    # options and variables in the create and new method.
     method Construct {args} {
         if {[llength $args] > 0} {
             my configure {*}$args
         }
         
         if {[self next] != {}} {
-            next Construct {*}$args
+            next [self] {*}$args
         }
     }
 }
@@ -146,7 +150,7 @@ namespace export type
             interp alias {} ${ns}::$cmd {} [self] $cmd
         }
         
-        namespace eval $ns {*}$args 
+        namespace eval $ns {*}$args
     }
     
     ## \brief install variable defaults in case there is no
@@ -244,18 +248,6 @@ namespace export type
     method InstallProcs {obj} {
         set ns [info object namespace $obj]
         interp alias {} ${ns}::install {} $obj install
-    }
-    
-    ## \brief Construct an object.
-    # 
-    # This is redefined as the real constructor via the corresponding constructor
-    # keyword. The trick is that before running the constructor, the options and
-    # variables must be installed. Therefore this one is called after installing
-    # options and variables in the create and new method.
-    method Construct {obj args} {
-        if {[llength $args] > 0} {
-            $obj configure {*}$args
-        }
     }
     
 } ;# class snit::type
