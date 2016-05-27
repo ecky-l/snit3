@@ -1,4 +1,14 @@
 
+set libDir [file normalize [file join [file dirname [info script]] ..]]
+if {[lsearch $auto_path $libDir] < 0} {
+    lappend auto_path $libDir
+}
+
+package require tcltest
+package require snit 3.0.0
+
+namespace import ::snit::*
+
 
 
 #-----------------------------------------------------------------------
@@ -34,7 +44,7 @@
     }
 } -returnCodes {
     error
-} -result {Error in "delegate method foo...", unknown delegation option "quux"}
+} -result {Error in "delegate method foo...", invalid syntax}
 
 ::tcltest::test delegate-1.5 {"as" doesn't work with "*"} -body {
     type dog {
@@ -58,7 +68,7 @@
     }
 } -returnCodes {
     error
-} -result {Error in "delegate method *...", unknown delegation option "quux"}
+} -result {Error in "delegate method *...", invalid syntax}
 
 ::tcltest::test delegate-1.8 {"except" works only with "*"} -body {
     type dog {

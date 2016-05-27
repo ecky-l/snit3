@@ -15,10 +15,10 @@ package require snit 3.0.0
     option -blubb moo
     
     delegate method this to that
-    
+    forward bla ttt
     constructor {args} {
-        puts $self,$args
-        #install x y z
+        puts holla,$self,$args
+        install x y z
     }
     
     method jaja {selfi args} {
@@ -34,7 +34,9 @@ package require snit 3.0.0
 
 snit::type c {
     variable bulla 45
-    
+    method bla {args} {
+        puts yay,$args
+    }
 }
 
 oo::class create b {

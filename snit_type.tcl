@@ -98,12 +98,10 @@ namespace export type
     # variables must be installed. Therefore this one is called after installing
     # options and variables in the create and new method.
     method Construct {args} {
-        if {[llength $args] > 0} {
-            my configure {*}$args
-        }
-        
         if {[self next] != {}} {
             next [self] {*}$args
+        } elseif {[llength $args] > 0} {
+            my configure {*}$args
         }
     }
 }
@@ -130,6 +128,9 @@ namespace export type
     variable _Options
     variable _SetGet
     
+    ## \brief hold the delegates that are later installed
+    variable _Delegates
+    
     ## \brief Installs handlers for oo::define before creating the class
     constructor {args} {
         set _VarDefaults {}
@@ -139,6 +140,17 @@ namespace export type
         ::oo::define [self] variable self
         ::oo::define [self] variable options
         ::oo::define [self] mixin ::snit::snitmethods
+        
+        # prepare forwards (delegates)
+        namespace eval [self namespace]::forwards {
+            proc method {obj method args} {
+                puts ay,$obj,$method$args
+            }
+            proc option {obj option args} {
+            }
+            proc typemethod {obj option args} {
+            }
+        }
         
         set ns [self namespace]::define
         foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
@@ -177,9 +189,8 @@ namespace export type
             my InstallVars $obj [self] {*}[info class variables [self]]
             my InstallOptions $obj [self] {*}[dict keys $_Options]
             my InstallProcs $obj
-            ::oo::objdefine $obj export Construct
-            $obj Construct {*}$args
-            ::oo::objdefine $obj unexport Construct
+            set ns [info obj namespace $obj]
+            namespace eval $ns [list my Construct {*}$args]
         } trap {} {err errOpts} {
             $obj destroy
             throw [dict get $errOpts -errorcode] $err
@@ -363,17 +374,44 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
 ## \brief delegate methods or options to components
 ::oo::define ::snit::type method delegate {what namespec args} {
     switch -- $what {
-    method {
-        
-    }
-    option {
-    }
-    typemethod {
-    }
+    method - option - typemethod { }
     default {
-        throw SNIT_DELEGATE_WRONG_TYPE "Error in \"delegate $what $namespec...\", \"${what}\"?"
+        throw SNIT_DELEGATE_WRONG_SPEC "Error in \"delegate $what $namespec...\", \"$what\"?"
     }
     }
+    
+    switch -- [lindex $args 0] {
+    to - using { }
+    default {
+        throw SNIT_DELEGATE_WRONG_SPEC \
+            "Error in \"delegate $what $namespec...\", unknown delegation option \"[lindex $args 0]\""
+    }
+    }
+    if {[llength $args] % 2 != 0} {
+        throw SNIT_DELEGATE_WRONG_SPEC "Error in \"delegate $what $namespec...\", invalid syntax"
+    }
+    foreach {x} [dict keys $args] {
+        if {$x ni [list to as using except]} {
+            throw SNIT_DELEGATE_WRONG_SPEC \
+                "Error in \"delegate $what $namespec...\", unknown delegation option \"$x\""
+        }
+    }
+    if {[dict exist $args as]} {
+        if {[string comp $namespec *] == 0} {
+            throw SNIT_DELEGATE_WRONG_SPEC \
+                "Error in \"delegate $what *...\", cannot specify \"as\" with \"*\""
+        }
+    }
+    if {[string comp $namespec *] != 0} {
+        if {[dict exist $args except]} {
+            throw SNIT_DELEGATE_WRONG_SPEC \
+                "Error in \"delegate $what $namespec...\", can only specify \"except\" with \"*\""
+        }
+    }
+    
+    # finally...
+    dict lappend _Delegates [lindex $args 1] [dict merge [lrange $args 2 end] [list $what $namespec]]
+    return
 }
 
 ## \brief The unknown method dispatches to create
