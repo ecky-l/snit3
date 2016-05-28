@@ -305,6 +305,8 @@ proc delegate-method {obj method args} {
                     throw SNIT_OPTION_UNDEFINED_DELEGATE \
                         "Error while retrieving delegate option $x...: delegate \"$to\" has not been installed in \"$obj\""
                 }
+            } else {
+                throw SNIT_OPTION_UNDEFINED "unknown option \"$x\""
             }
         }
         return $res
@@ -521,7 +523,13 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
         } elseif {[llength $namespec] != 1} {
             throw SNIT_OPTION_WRONG_NAMESPEC "option namespec must have one or three components"
         }
-            
+        
+        if {[string index $name 0] ne "-" \
+                || [string is upper [string index $name 1]] \
+                    || [regexp {[ \t\n]} $name]} {
+            throw SNIT_OPTION_WRONG_NAMESPEC "Error in \"delegate option $name...\", badly named option \"$name\""
+        }
+        
         dict set _DelegateOptions $name [concat $args [list resource $resource class $class]]
     }
     }

@@ -192,12 +192,12 @@ namespace import ::snit::*
         option -color black
         delegate option -akc to papers as -akcflag
         constructor {args} {
-            install papers using papers %AUTO%
+            install papers using papers $self.papers
             #set papers [papers create $self.papers]
         }
 
         destructor {
-            catch {$self.papers destroy}
+            $self.papers destroy
         }
     }
 
@@ -206,6 +206,7 @@ namespace import ::snit::*
     spot configure -akc
 } -cleanup {
     dog destroy
+    papers destroy
 } -result {-akc akc Akc 1 0}
 
 ::tcltest::test option-2.4 {configure -unknownopt} -body {
@@ -217,11 +218,12 @@ namespace import ::snit::*
         option -color black
         delegate option -akc to papers as -akcflag
         constructor {args} {
-            set papers [papers create $self.papers]
+            install papers using papers $self.papers
+            #set papers [papers create $self.papers]
         }
 
         destructor {
-            catch {$self.papers destroy}
+            $self.papers destroy
         }
     }
 
@@ -310,7 +312,8 @@ namespace import ::snit::*
         delegate option -tailcolor to tail as -color
 
         constructor {args} {
-            set tail [tail fidotail]
+            install tail using tail fidotail
+            #set tail [tail fidotail]
         }
     }
 
@@ -331,7 +334,8 @@ namespace import ::snit::*
         delegate option {-tailcolor tailColor} to tail as -color
 
         constructor {args} {
-            set tail [tail fidotail]
+            install tail using tail fidotail
+            #set tail [tail fidotail]
         }
     }
 
@@ -352,7 +356,8 @@ namespace import ::snit::*
         delegate option {-tailcolor tailcolor TailColor} to tail as -color
 
         constructor {args} {
-            set tail [tail fidotail]
+            install tail using tail fidotail
+            #set tail [tail fidotail]
         }
     }
 
@@ -373,7 +378,8 @@ namespace import ::snit::*
         delegate option -tailcolor to tail as -color
 
         constructor {args} {
-            set tail [tail fidotail -color red]
+            install tail using tail fidotail -color red
+            #set tail [tail fidotail -color red]
         }
     }
 
@@ -431,7 +437,7 @@ namespace import ::snit::*
     }
 } -returnCodes {
     error
-} -result {Error in "delegate option {"-with space"}...", badly named option "-with space"}
+} -result {Error in "delegate option "-with space"...", badly named option ""-with space""}
 
 ::tcltest::test option-5.1 {local widget options read from option database} -constraints {
     tk
