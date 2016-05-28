@@ -21,12 +21,6 @@ proc method {class name args} {
     return
 }
 
-## \brief The delegate proc
-#
-proc delegate-method {obj method args} {
-    uplevel $obj $method $args
-}
-
 ## \brief A mixin object that defines "public variable" behaviour of Itcl.
 # 
 # Defines methods [configure] and [cget], which are used to set and get the 
@@ -40,6 +34,21 @@ proc delegate-method {obj method args} {
 # object. Since this has been repetitive all the time, we can now let
 # the mixin object do it automatically.
 ::oo::class create snitmethods {
+    
+    ## \brief The destructor for snit types.
+    #
+    # Calls [next] first to execute the destructor defined in snit types
+    # and then cleans up all components
+    destructor {
+        if {[self next] != {}} {
+            next
+        }
+        my variable _Components
+        foreach {c} [dict keys $_Components] {
+            my variable $c
+            catch { [set $c] destroy }
+        }
+    }
     
     ## \brief setting -var value pairs
     method configure {args} {
@@ -133,29 +142,38 @@ proc delegate-method {obj method args} {
     }
     
     ## \brief The install method for components
-    method install {compName using objType objName args} {
-        my variable $compName
+    method install {comp using objType objName args} {
+        my variable $comp
         my variable _DelegateOpts
+        my variable _Components
         
-        set $compName [uplevel $objType $objName $args]
+        set $comp [uplevel $objType $objName $args]
         set class [info obj class [self]]
-        set key [list to $compName]
+        set key [list to $comp]
         set delegates [namespace eval [info obj namespace $class] {my DelegateMethods}]
         if {[dict exist $delegates $key]} {
             foreach {v} [dict get $delegates $key] {
                 set m [dict get $v method]
                 if {[string compare $m *] == 0} {
-                    ::oo::objdefine [self] method unknown {name args} "uplevel [set $compName] \$name {*}\$args"
+                    ::oo::objdefine [self] method unknown {name args} "uplevel [set $comp] \$name {*}\$args"
                 } else {
                     set as $m
                     if {[dict exist $v as]} {
                         set as [dict get $v as]
                     }
-                    ::oo::objdefine [self] method $m {args} "uplevel [set $compName] $as {*}\$args"
+                    ::oo::objdefine [self] method $m {args} "uplevel [set $comp] $as {*}\$args"
                 }
             }
         }
-        set _DelegateOpts [namespace eval [info obj namespace $class] {my DelegateOptions}]
+        
+        if {$comp in [dict keys $_Components]} {
+            set v [dict get $_Components $comp]
+            if {[dict exist $v -public]} {
+                ::oo::objdefine [self] forward [dict get $v -public] [set $comp]
+            }
+        } else {
+            dict set _Components $comp {}
+        }
     }
     
     ## \brief Construct an object.
@@ -171,6 +189,8 @@ proc delegate-method {obj method args} {
             my configure {*}$args
         }
     }
+    
+    
 }
 
 
@@ -195,6 +215,9 @@ proc delegate-method {obj method args} {
     variable _Options
     variable _SetGet
     
+    ## \brief the predefined components
+    variable _Components
+    
     ## \brief hold the delegates that are later installed
     variable _DelegateMethods
     variable _DelegateOptions
@@ -204,6 +227,7 @@ proc delegate-method {obj method args} {
         set _VarDefaults {}
         set _Options {}
         set _SetGet {}
+        set _Components {}
         set _DelegateMethods {}
         set _DelegateOptions {}
         
@@ -216,7 +240,7 @@ proc delegate-method {obj method args} {
             interp alias {} ${ns}::$cmd {} [self] $cmd
         }
         
-        set cmdList { option delegate }
+        set cmdList { option delegate component }
         foreach {cmd} $cmdList {
             interp alias {} ${ns}::$cmd {} [self] $cmd
         }
@@ -349,6 +373,10 @@ proc delegate-method {obj method args} {
                 namespace eval $ns [list set options($k) [dict get $_Options $k default]]
             }
         }
+        ::oo::objdefine $obj variable _DelegateOpts
+        ::oo::objdefine $obj variable _Components
+        namespace eval $ns [list set _DelegateOpts $_DelegateOptions]
+        namespace eval $ns [list set _Components $_Components]
     }
     
     ## \brief install default procs, such as "install"
@@ -534,6 +562,14 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
     }
     }
     return
+}
+
+## \brief The component method to specify explicit components
+::oo::define ::snit::type method component {name args} {
+    if {$name in $_Components} {
+        throw SNIT_DEFINE_COMPONENT_ERROR "Error in snit::type [self] component $name...: $name already defined"
+    }
+    lappend _Components $name $args
 }
 
 ## \brief The unknown method dispatches to create

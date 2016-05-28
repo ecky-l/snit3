@@ -11,6 +11,8 @@ package require snit 3.0.0
     variable prop x
     variable bah c
     
+    component that -public that
+    
     option -opt -default ha -validatemethod moo
     option -blubb moo
     
@@ -22,7 +24,7 @@ package require snit 3.0.0
     
     constructor {args} {
         puts holla,$self,$args
-        install that using ::c %AUTO%
+        install that using ::c $self.c
         install bluna using ::c %AUTO%
     }
     
