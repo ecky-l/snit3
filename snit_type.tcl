@@ -4,6 +4,29 @@ package require TclOO
 namespace eval ::snit {
 namespace export type
 
+## \brief snit::method to redefine methods, constructors, destructors etc.
+#
+# A wrapper around the specialized methods in snit::type definition (see above),
+# but must be applied a little different than just by method call.
+proc method {class name args} {
+    set ns [info object namespace $class]::define
+    switch -- $name {
+    constructor - destructor {
+        namespace eval $ns $name $args
+    }
+    default {
+        namespace eval $ns method $name $args
+    }
+    }
+    return
+}
+
+## \brief The delegate proc
+#
+proc delegate-method {obj method args} {
+    uplevel $obj $method $args
+}
+
 ## \brief A mixin object that defines "public variable" behaviour of Itcl.
 # 
 # Defines methods [configure] and [cget], which are used to set and get the 
@@ -20,18 +43,27 @@ namespace export type
     
     ## \brief setting -var value pairs
     method configure {args} {
+        my variable _DelegateOpts
         set class [info obj class [self]]
         set ns [info obj namespace [self]]
         
+        set delOpts [namespace eval [info obj namespace $class] [list my DelegateOptions]]
         if {[llength $args] == 0} {
             set opts [namespace eval $ns [list array names options]]
-            return [$class optionDefaults [self] {*}$opts]
+            if {[info exist _DelegateOpts]} {
+                set opts [concat $opts [dict keys $_DelegateOpts]]
+            }
+            return [namespace eval [info obj namespace $class] \
+                [list my OptionDefaults [self] {*}$opts]]
         } elseif {[llength $args] == 1} {
             set opt $args
-            if {[string index $opt 0] ne "-" || [string is upper [string index $opt 1]]} {
-                throw SNIT_OPTION_WRONG_NAMESPEC "Error in \"option $opt...\", badly named option \"$opt\""
+            if {[string index $opt 0] ne "-" \
+                    || [string is upper [string index $opt 1]]} {
+                throw SNIT_OPTION_WRONG_NAMESPEC \
+                    "Error in \"option $opt...\", badly named option \"$opt\""
             }
-            return {*}[$class optionDefaults [self] $opt]
+            return {*}[namespace eval [info obj namespace $class] \
+                [list my OptionDefaults [self] $opt]]
         }
         
         if {[llength $args] % 2 != 0
@@ -42,7 +74,8 @@ namespace export type
         foreach {opt val} $args {
             if {[string index $opt 0] ne "-" \
                     || [string is upper [string index $opt 1]]} {
-                throw SNIT_OPTION_WRONG_NAMESPEC "Error in \"option $opt...\", badly named option \"$opt\""
+                throw SNIT_OPTION_WRONG_NAMESPEC \
+                    "Error in \"option $opt...\", badly named option \"$opt\""
             }
             
             set var [string range $opt 1 end]
@@ -51,6 +84,12 @@ namespace export type
                 set $var $val
             } elseif {[namespace eval $ns [list info exists options($opt)]]} {
                 namespace eval $ns [list set options($opt) $val]
+            } elseif {[info exist _DelegateOpts] && ($opt in $_DelegateOpts)} {
+                set v [dict get $_DelegateOpts $opt]
+                set c [dict get $v to]
+                set as [expr {[dict exist $v as] ? [dict get $v as] : $opt}]
+                my variable $c
+                [set $c] configure $as $val
             } else {
                 throw SNIT_OPTION_UNDEFINED "Error in \"[self] configure $opt...\": No such option $opt"
             }
@@ -59,6 +98,7 @@ namespace export type
     
     ## \brief get the value of -variable
     method cget {opt} {
+        my variable _DelegateOpts
         if {[string index $opt 0] ne "-" \
                 || [string is upper [string index $opt 1]]} {
             throw SNIT_OPTION_WRONG_NAMESPEC "Error in \"option $opt...\", badly named option \"$opt\""
@@ -72,6 +112,12 @@ namespace export type
             return [set $var]
         } elseif {[namespace eval $ns [list info exists options($opt)]]} {
             return {*}[namespace eval $ns [list set options($opt)]]
+        } elseif {[info exist _DelegateOpts] && ($opt in $_DelegateOpts)} {
+            set v [dict get $_DelegateOpts $opt]
+            set c [dict get $v to]
+            set as [expr {[dict exist $v as] ? [dict get $v as] : $opt}]
+            my variable $c
+            return [[set $c] cget $as]
         }
         throw SNIT_OPTION_UNDEFINED "Error in \"[self] cget $opt...\": No such option $opt"
     }
@@ -87,8 +133,29 @@ namespace export type
     }
     
     ## \brief The install method for components
-    method install {args} {
-        my variable self
+    method install {compName using objType objName args} {
+        my variable $compName
+        my variable _DelegateOpts
+        
+        set $compName [uplevel $objType $objName $args]
+        set class [info obj class [self]]
+        set key [list to $compName]
+        set delegates [namespace eval [info obj namespace $class] {my DelegateMethods}]
+        if {[dict exist $delegates $key]} {
+            foreach {v} [dict get $delegates $key] {
+                set m [dict get $v method]
+                if {[string compare $m *] == 0} {
+                    ::oo::objdefine [self] method unknown {name args} "uplevel [set $compName] \$name {*}\$args"
+                } else {
+                    set as $m
+                    if {[dict exist $v as]} {
+                        set as [dict get $v as]
+                    }
+                    ::oo::objdefine [self] method $m {args} "uplevel [set $compName] $as {*}\$args"
+                }
+            }
+        }
+        set _DelegateOpts [namespace eval [info obj namespace $class] {my DelegateOptions}]
     }
     
     ## \brief Construct an object.
@@ -129,28 +196,20 @@ namespace export type
     variable _SetGet
     
     ## \brief hold the delegates that are later installed
-    variable _Delegates
+    variable _DelegateMethods
+    variable _DelegateOptions
     
     ## \brief Installs handlers for oo::define before creating the class
     constructor {args} {
         set _VarDefaults {}
         set _Options {}
         set _SetGet {}
+        set _DelegateMethods {}
+        set _DelegateOptions {}
         
         ::oo::define [self] variable self
         ::oo::define [self] variable options
         ::oo::define [self] mixin ::snit::snitmethods
-        
-        # prepare forwards (delegates)
-        namespace eval [self namespace]::forwards {
-            proc method {obj method args} {
-                puts ay,$obj,$method$args
-            }
-            proc option {obj option args} {
-            }
-            proc typemethod {obj option args} {
-            }
-        }
         
         set ns [self namespace]::define
         foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
@@ -184,6 +243,10 @@ namespace export type
     
     ## \brief create named or local objects 
     method create {name args} {
+        if {[string match %AUTO% $name]} {
+            return [my new {*}$args]
+        }
+        
         set obj [next $name {*}$args]
         try {
             my InstallVars $obj [self] {*}[info class variables [self]]
@@ -217,13 +280,44 @@ namespace export type
     }
     
     ## \brief return the default, resource and class for options
-    method optionDefaults {obj args} {
-        lmap x $args {
-            concat $x [dict get $_Options $x resource] \
-                [dict get $_Options $x class] \
-                    [dict get $_Options $x default] \
-                        [$obj cget $x]
+    method OptionDefaults {obj args} {
+        set res {}
+        foreach {x} $args {
+            if {[dict exist $_Options $x]} {
+                lappend res [list $x [dict get $_Options $x resource] \
+                    [dict get $_Options $x class] \
+                        [dict get $_Options $x default] \
+                            [$obj cget $x]]
+            } elseif {[dict exist $_DelegateOptions $x]} {
+                try {
+                    set v [dict get $_DelegateOptions $x]
+                    set to [dict get $v to]
+                    set foreignObj [namespace eval [info obj namespace $obj] [list set $to]]
+                    set as [expr {[dict exist $v as] ? [dict get $v as] : $x}]
+                    if {[dict exist $v as]} {
+                        set r [$foreignObj configure $as]
+                        lappend res [list $x [dict get $v resource] \
+                            [dict get $v class] [lindex $r 3] [lindex $r 4]]
+                    } else {
+                        lappend res [$foreignObj configure $as]
+                    }
+                } trap {TCL LOOKUP VARNAME} {err errOpts} {
+                    throw SNIT_OPTION_UNDEFINED_DELEGATE \
+                        "Error while retrieving delegate option $x...: delegate \"$to\" has not been installed in \"$obj\""
+                }
+            }
         }
+        return $res
+    }
+    
+    ## \brief return the delegates for install
+    method DelegateMethods {} {
+        return $_DelegateMethods
+    }
+    
+    ## \brief return the delegated options
+    method DelegateOptions {args} {
+        return $_DelegateOptions
     }
     
     ## \brief Installs variables from the args list in an object obj.
@@ -410,33 +504,36 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
     }
     
     # finally...
-    dict lappend _Delegates [lindex $args 1] [dict merge [lrange $args 2 end] [list $what $namespec]]
+    switch -- $what {
+    method {
+        dict lappend _DelegateMethods [lrange $args 0 1] [concat [list $what $namespec] [lrange $args 2 end]]
+    }
+    option {
+        # create a namespec to set as resource/class
+        set name $namespec
+        set resource [string range $name 1 end]
+        set class [string tou $resource 0]
+        if {[llength $namespec] == 3} {
+            lassign $namespec name resource class
+        } elseif {[llength $namespec] == 2} {
+            lassign $namespec name resource
+            set class [string tou $resource 0]
+        } elseif {[llength $namespec] != 1} {
+            throw SNIT_OPTION_WRONG_NAMESPEC "option namespec must have one or three components"
+        }
+            
+        dict set _DelegateOptions $name [concat $args [list resource $resource class $class]]
+    }
+    }
     return
 }
 
 ## \brief The unknown method dispatches to create
 ::oo::objdefine ::snit::type method unknown {clName args} {
-    if {[llength $args] > 1} {
-        error "usage ::snit::type <name> <script>"
+    if {[llength $args] != 1} {
+        throw SNIT_TYPE_UNKNOWN_METHOD "Error in \"snit::type $clName...\" unknown method"
     }
     uplevel ::snit::type create $clName $args
-}
-
-## \brief snit::method to redefine methods, constructors, destructors etc.
-#
-# A wrapper around the specialized methods in snit::type definition (see above),
-# but must be applied a little different than just by method call.
-proc method {class name args} {
-    set ns [info object namespace $class]::define
-    switch -- $name {
-    constructor - destructor {
-        namespace eval $ns $name $args
-    }
-    default {
-        namespace eval $ns method $name $args
-    }
-    }
-    return
 }
 
 } ;# namespace snit

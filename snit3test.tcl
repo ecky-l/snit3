@@ -14,16 +14,20 @@ package require snit 3.0.0
     option -opt -default ha -validatemethod moo
     option -blubb moo
     
-    delegate method this to that
-    forward bla ttt
+    delegate method this to that as bla
+    delegate method * to bluna
+    
+    delegate option -bolla to that
+    delegate option -fck to that as -muh
+    
     constructor {args} {
         puts holla,$self,$args
-        install x y z
+        install that using ::c %AUTO%
+        install bluna using ::c %AUTO%
     }
     
     method jaja {selfi args} {
         puts hahaha,$options(-opt)
-        install a b c
     }
     
     proc ttt {args} {
@@ -34,13 +38,31 @@ package require snit 3.0.0
 
 snit::type c {
     variable bulla 45
+    option -bolla murps
+    option -muh 42
+    
     method bla {args} {
-        puts yay,$args
+        puts yay,$self,$args
+    }
+    method blo {args} {
+        puts blo_in,$self,$args
     }
 }
 
-oo::class create b {
+snit::type papers {
+    option -akcflag 1
+}
+
+snit::type dog {
+    option -color black
+    delegate option -akc to papers as -akcflag
+    
     constructor {args} {
-        puts yay
+        install papers using papers %AUTO%
+        #set papers [papers create $self.papers]
+    }
+
+    destructor {
+        catch {$self.papers destroy}
     }
 }
