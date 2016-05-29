@@ -35,6 +35,21 @@ proc method {class name args} {
 # the mixin object do it automatically.
 ::oo::class create snitmethods {
     
+    ## \brief Construct an object.
+    # 
+    # Carries out the necessary preconstruct tasks on the object, i.e. installation of
+    # special variables, options, delegates etc.
+    constructor {args} {
+        set class [info obj class [self]]
+        namespace eval [info obj namespace $class] [list my PreConstructTasks [self] {*}$args]
+        
+        if {[self next] != {}} {
+            next {*}$args
+        } elseif {[llength $args] > 0} {
+            my configure {*}$args
+        }
+    }
+    
     ## \brief The destructor for snit types.
     #
     # Calls [next] first to execute the destructor defined in snit types
@@ -56,7 +71,7 @@ proc method {class name args} {
         set class [info obj class [self]]
         set ns [info obj namespace [self]]
         
-        set delOpts [namespace eval [info obj namespace $class] [list my DelegateOptions]]
+        set delOpts [namespace eval [info obj namespace $class] [list set _DelegateOptions]]
         if {[llength $args] == 0} {
             set opts [namespace eval $ns [list array names options]]
             if {[info exist _DelegateOpts]} {
@@ -150,7 +165,7 @@ proc method {class name args} {
         set $comp [uplevel $objType $objName $args]
         set class [info obj class [self]]
         set key [list to $comp]
-        set delegates [namespace eval [info obj namespace $class] {my DelegateMethods}]
+        set delegates [namespace eval [info obj namespace $class] {set _DelegateMethods}]
         if {[dict exist $delegates $key]} {
             foreach {v} [dict get $delegates $key] {
                 set m [dict get $v method]
@@ -175,21 +190,6 @@ proc method {class name args} {
             dict set _Components $comp {}
         }
     }
-    
-    ## \brief Construct an object.
-    # 
-    # This is redefined as the real constructor via the corresponding constructor
-    # keyword. The trick is that before running the constructor, the options and
-    # variables must be installed. Therefore this one is called after installing
-    # options and variables in the create and new method.
-    method Construct {args} {
-        if {[self next] != {}} {
-            next [self] {*}$args
-        } elseif {[llength $args] > 0} {
-            my configure {*}$args
-        }
-    }
-    
     
 }
 
@@ -248,41 +248,14 @@ proc method {class name args} {
         namespace eval $ns {*}$args
     }
     
-    ## \brief install variable defaults in case there is no
-    method new {args} {
-        set obj [next {*}$args]
-        try {
-            my InstallVars $obj [self] {*}[info class variables [self]]
-            my InstallOptions $obj [self] {*}[dict keys $_Options]
-            my InstallProcs $obj
-            ::oo::objdefine $obj export Construct
-            $obj Construct {*}$args
-            ::oo::objdefine $obj unexport Construct
-        } trap {} {err errOpts} {
-            $obj destroy
-            throw [dict get $errOpts -errorcode] $err
-        }
-        return $obj
-    }
-    
-    ## \brief create named or local objects 
+    ## \brief create named or local objects.
+    #
+    # Especially dispatch the %AUTO% naming to [new]
     method create {name args} {
         if {[string match %AUTO% $name]} {
             return [my new {*}$args]
         }
-        
-        set obj [next $name {*}$args]
-        try {
-            my InstallVars $obj [self] {*}[info class variables [self]]
-            my InstallOptions $obj [self] {*}[dict keys $_Options]
-            my InstallProcs $obj
-            set ns [info obj namespace $obj]
-            namespace eval $ns [list my Construct {*}$args]
-        } trap {} {err errOpts} {
-            $obj destroy
-            throw [dict get $errOpts -errorcode] $err
-        }
-        return $obj
+        next $name {*}$args
     }
     
     ## \brief unknown dispatches to create
@@ -336,16 +309,6 @@ proc method {class name args} {
         return $res
     }
     
-    ## \brief return the delegates for install
-    method DelegateMethods {} {
-        return $_DelegateMethods
-    }
-    
-    ## \brief return the delegated options
-    method DelegateOptions {args} {
-        return $_DelegateOptions
-    }
-    
     ## \brief Installs variables from the args list in an object obj.
     method InstallVars {obj cls args} {
         set ov [info obj vars $obj]
@@ -385,21 +348,27 @@ proc method {class name args} {
         interp alias {} ${ns}::install {} $obj install
     }
     
+    ## \brief aggregate preconstruct tasks
+    method PreConstructTasks {obj args} {
+        my InstallVars $obj [self] {*}[info class variables [self]]
+        my InstallOptions $obj [self] {*}[dict keys $_Options]
+        my InstallProcs $obj
+        #set ns [info obj namespace $obj]
+        #namespace eval $ns [list my Construct {*}$args]
+    }
+    
 } ;# class snit::type
 
 foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
     ::oo::define ::snit::type method $cmd {args} [concat {::oo::define [self]} $cmd {{*}$args}]
 }
 
-## \brief Defines the constructor and installs variables
+## \brief Defines superclass statement. 
 #
-# Prepend some code in front of the constructor body, which takes the vars from the class 
-# definition and installs the corresponding defaults into the newly created object. If a 
-# constructor is defined, it needs access to the variables and defaults. Prepend code to 
-# install the variables in front of the constructor body, so that the variable defaults 
-# are installed first, before anything else. 
-::oo::define ::snit::type method constructor {argsList body} {
-    ::oo::define [self] method Construct [concat obj $argsList] $body
+# snit3 types can inherit each other thanks to the usage of TclOO. 
+# TODO: install options, delegates, variables etc. from parent types in the derived type
+::oo::define ::snit::type method superclass {args} {
+    ::oo::define [self] superclass {*}$args
 }
 
 ## \brief The Variable with default command.

@@ -51,6 +51,15 @@ snit::type c {
     }
 }
 
+snit::type x {
+    superclass ::a
+    constructor {args} {
+        puts hello,x,$self
+        next {*}$args
+    }
+}
+
+
 snit::type papers {
     option -akcflag 1
 }
