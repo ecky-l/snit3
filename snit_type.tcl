@@ -157,12 +157,16 @@ proc method {class name args} {
     }
     
     ## \brief The install method for components
-    method install {comp using objType objName args} {
+    method install {comp using objType args} {
         my variable $comp
         my variable _DelegateOpts
         my variable _Components
         
-        set $comp [uplevel $objType $objName $args]
+        if {[llength $args] == 0} {
+            set $comp $objType
+        } else {
+            set $comp [uplevel $objType $args]
+        }
         set class [info obj class [self]]
         set key [list to $comp]
         set delegates [namespace eval [info obj namespace $class] {set _DelegateMethods}]
@@ -418,6 +422,16 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
     if {[lsearch $argsList type] >= 0} {
         throw SNIT_METHOD_WRONG_ARG "method $mName's arglist may not contain \"type\" explicitly"
     }
+    foreach {k vv} $_DelegateMethods {
+        foreach {v} $vv {
+            if {[dict get $v method] eq $mName} {
+                throw SNIT_METHOD_WRONG_ARG "Error in \"method $mName...\", \"$mName\" has been delegated"
+            }
+        }
+    }
+    if {[lsearch [dict keys $_DelegateMethods] $mName]} {
+        #throw SNIT_METHOD_WRONG_ARG "Error in \"method $mName...\", \"$mName\" has been delegated"
+    }
     ::oo::define [self] method $mName $argsList $mBody
 }
 
@@ -505,6 +519,12 @@ foreach {cmd} [lmap x [info commands ::oo::define::*] {namespace tail $x}] {
     # finally...
     switch -- $what {
     method {
+        # check if method was locally defined
+        if {$namespec in [info class methods [self]]} {
+            throw SNIT_DELEGATE_WRONG_SPEC \
+                "Error in \"delegate method $namespec...\", \"$namespec\" has been defined locally."
+        }
+        
         dict lappend _DelegateMethods [lrange $args 0 1] [concat [list $what $namespec] [lrange $args 2 end]]
     }
     option {

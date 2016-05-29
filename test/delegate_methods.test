@@ -1,4 +1,13 @@
 
+set libDir [file normalize [file join [file dirname [info script]] ..]]
+if {[lsearch $auto_path $libDir] < 0} {
+    lappend auto_path $libDir
+}
+
+package require tcltest
+package require snit 3.0.0
+
+namespace import ::snit::*
 
 
 
@@ -16,12 +25,12 @@
     error
 } -cleanup {
     dog destroy
-} -result {::dog ::spot delegates method "foo" to undefined component "bar"}
+} -result {unknown method "foo": must be cget, configure, destroy, info or install}
 
 ::tcltest::test dmethod-1.2 {delegating to existing component} -body {
     type dog {
         constructor {args} {
-            set string string
+            install string using string
         }
 
         delegate method length to string
@@ -33,13 +42,11 @@
     dog destroy
 } -result {3}
 
-# Case 1
-::tcltest::test dmethod-1.3 {delegating to existing component with error} -constraints {
-    snit1
-} -body {
+# Case 2
+::tcltest::test dmethod-1.4 {delegating to existing component with error} -body {
     type dog {
         constructor {args} {
-            set string string
+            install string using string
         }
 
         delegate method length to string
@@ -53,30 +60,10 @@
     error
 } -result {wrong # args: should be "string length string"}
 
-# Case 2
-::tcltest::test dmethod-1.4 {delegating to existing component with error} -constraints {
-    snit2
-} -body {
-    type dog {
-        constructor {args} {
-            set string string
-        }
-
-        delegate method length to string
-    }
-
-    dog create spot
-    spot length foo bar
-} -cleanup {
-    dog destroy
-} -returnCodes {
-    error
-} -result {wrong # args: should be "spot length string"}
-
 ::tcltest::test dmethod-1.5 {delegating unknown methods to existing component} -body {
     type dog {
         constructor {args} {
-            set string string
+            install string using string
         }
 
         delegate method * to string
@@ -91,7 +78,7 @@
 ::tcltest::test dmethod-1.6 {delegating unknown method to existing component with error} -body {
     type dog {
         constructor {args} {
-            set stringhandler string
+            install stringhandler using string
         }
 
         delegate method * to stringhandler
@@ -110,7 +97,7 @@
 ::tcltest::test dmethod-1.6a.0 {delegating unknown method to existing component with error} -body {
     type dog {
         constructor {args} {
-            set stringhandler string
+            install stringhandler using string
         }
 
         delegate method * to stringhandler
@@ -129,7 +116,7 @@
 ::tcltest::test dmethod-1.6a.1 {delegating unknown method to existing component with error} -body {
     type dog {
         constructor {args} {
-            set stringhandler string
+            install stringhandler using string
         }
 
         delegate method * to stringhandler
@@ -137,8 +124,6 @@
 
     dog create spot
     spot foo bar
-} -constraints {
-    snit2 tcl8.6plus
 } -returnCodes {
     error
 } -cleanup {
@@ -178,7 +163,8 @@
         delegate method * to tail except {wag tuck}
 
         constructor {args} {
-            set tail [tail %AUTO%]
+            install tail using tail %AUTO%
+            #set tail [tail %AUTO%]
         }
     }
 
@@ -234,7 +220,7 @@
         delegate method wag to tail as {wag briskly}
 
         constructor {args} {
-            set tail [tail %AUTO%]
+            install tail using tail %AUTO%
         }
     }
 
@@ -255,7 +241,7 @@
         delegate method wag to tail using {%c %m}
 
         constructor {args} {
-            set tail [tail %AUTO%]
+            install tail using tail %AUTO%
         }
     }
 

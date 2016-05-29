@@ -5,7 +5,7 @@ if {[lsearch $auto_path $libDir] < 0} {
 }
 
 package require snit 3.0.0
-
+namespace import snit::*
 
 ::snit::type a {
     variable prop x
@@ -15,6 +15,8 @@ package require snit 3.0.0
     
     option -opt -default ha -validatemethod moo
     option -blubb moo
+    
+    method blubbs {} {}
     
     delegate method this to that as bla
     delegate method * to bluna
@@ -59,21 +61,3 @@ snit::type x {
     }
 }
 
-
-snit::type papers {
-    option -akcflag 1
-}
-
-snit::type dog {
-    option -color black
-    delegate option -akc to papers as -akcflag
-    
-    constructor {args} {
-        install papers using papers %AUTO%
-        #set papers [papers create $self.papers]
-    }
-
-    destructor {
-        catch {$self.papers destroy}
-    }
-}

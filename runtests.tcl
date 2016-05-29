@@ -12,6 +12,7 @@ tcltest::configure -verbose {pass error line} \
 tcltest::configure -file {
     methods.test
     delegate_syntax.test
+    delegate_methods.test
     options.test
 }
 
