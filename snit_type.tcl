@@ -357,8 +357,6 @@ proc method {class name args} {
         my InstallVars $obj [self] {*}[info class variables [self]]
         my InstallOptions $obj [self] {*}[dict keys $_Options]
         my InstallProcs $obj
-        #set ns [info obj namespace $obj]
-        #namespace eval $ns [list my Construct {*}$args]
     }
     
 } ;# class snit::type
