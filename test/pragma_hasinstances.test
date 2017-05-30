@@ -1,0 +1,78 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# Pragma -hasinstances
+
+::tcltest::test hasinstances-1.1 {-hasinstances is true by default} -body {
+    type dog {
+        method bark {} {
+            return "Woof"
+        }
+    }
+
+    dog fido
+    fido bark
+} -cleanup {
+    dog destroy
+} -result {Woof}
+
+# Case 1
+::tcltest::test hasinstances-1.2 {'-hasinstances no' disables explicit object creation} -constraints {
+    snit1
+} -body {
+    type dog {
+        pragma -hasinstances no
+    }
+
+    dog create fido
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {"::dog create" is not defined}
+
+# Case 2
+::tcltest::test hasinstances-1.3 {'-hasinstances no' disables explicit object creation} -constraints {
+    snit2
+} -body {
+    type dog {
+        pragma -hasinstances no
+    }
+
+    dog create fido
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {unknown subcommand "create": namespace ::dog does not export any commands}
+
+# Case 1
+::tcltest::test hasinstances-1.4 {'-hasinstances no' disables implicit object creation} -constraints {
+    snit1
+} -body {
+    type dog {
+        pragma -hasinstances no
+    }
+
+    dog fido
+} -returnCodes {
+    error
+} -result {"::dog fido" is not defined}
+
+# Case 2
+::tcltest::test hasinstances-1.5 {'-hasinstances no' disables implicit object creation} -constraints {
+    snit2
+} -body {
+    type dog {
+        pragma -hasinstances no
+    }
+
+    dog fido
+} -returnCodes {
+    error
+} -result {unknown subcommand "fido": namespace ::dog does not export any commands}
+
+
+tcltest::cleanupTest

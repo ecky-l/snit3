@@ -1,0 +1,51 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# Widgets
+
+# A widget is just a widgetadaptor with an automatically created hull
+# component (a Tk frame).  So the widgetadaptor tests apply; all we
+# need to test here is the frame creation.
+
+::tcltest::test widget-1.1 {creating a widget} -constraints {
+    tk
+} -body {
+    widget myframe {
+        method hull {} { return $hull }
+
+        delegate method * to hull
+        delegate option * to hull
+    }
+
+    myframe create .frm -background green
+
+    set a [.frm cget -background]
+    set b [.frm hull]
+
+    destroy .frm
+    tkbide
+    list $a $b
+} -cleanup {
+    myframe destroy
+} -result {green ::hull1.frm}
+
+::tcltest::test widget-2.1 {can't redefine hull} -constraints {
+    tk
+} -body {
+    widget myframe {
+        method resethull {} { set hull "" }
+    }
+
+    myframe .frm
+
+    .frm resethull
+} -returnCodes {
+    error
+} -cleanup {
+    myframe destroy
+} -result {can't set "hull": The hull component cannot be redefined}
+
+
+::tcltest::cleanupTests

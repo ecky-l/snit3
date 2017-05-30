@@ -1,0 +1,197 @@
+## snit3.test (created by Tloona here)
+
+set libDir [file normalize [file join [file dirname [info script]] ..]]
+if {[lsearch $auto_path $libDir] < 0} {
+    lappend auto_path $libDir
+}
+
+package require tcltest
+package require snit 3.0.0
+
+namespace import ::snit::*
+
+#-----------------------------------------------------------------------
+# methods
+
+::tcltest::test method-1.1 {methods get called} -body {
+    type dog {
+        method bark {} {
+            return "$self barks"
+        }
+    }
+
+    dog create spot
+    spot bark
+} -cleanup {
+    dog destroy
+} -result {::spot barks}
+
+tcltest::test method-1.2 {methods can call other methods} -body {
+    type dog {
+        method bark {} {
+            return "$self barks."
+        }
+
+        method chase {quarry} {
+            return "$self chases $quarry; [$self bark]"
+        }
+    }
+
+    dog create spot
+    spot chase cat
+} -cleanup {
+    dog destroy
+} -result {::spot chases cat; ::spot barks.}
+
+tcltest::test method-1.3 {instances can call one another} -body {
+    type dog {
+        method bark {} {
+            return "$self barks."
+        }
+
+        method chase {quarry} {
+            return "$self chases $quarry; [$quarry bark] [$self bark]"
+        }
+    }
+
+    dog create spot
+    dog create fido
+    spot chase ::fido
+} -cleanup {
+    dog destroy
+} -result {::spot chases ::fido; ::fido barks. ::spot barks.}
+
+tcltest::test method-1.4 {upvar works in methods} -body {
+    type dog {
+        method goodname {varname} {
+            upvar $varname myvar
+            set myvar spot
+        }
+    }
+
+    dog create fido
+    set thename fido
+    fido goodname thename
+    set thename
+} -cleanup {
+    dog destroy
+} -result {spot}
+
+tcltest::test method-1.5 {unknown methods get an error} -body {
+    type dog { }
+
+    dog create spot
+    set result ""
+    spot chase
+} -cleanup {
+    dog destroy
+} -returnCodes {
+    error
+} -result {unknown method "chase": must be cget, configure, destroy, info or install}
+
+tcltest::test method-1.7 {info type method returns the object's type} -body {
+    type dog { }
+
+    dog create spot
+    spot info type
+} -cleanup {
+    dog destroy
+} -result {::dog}
+
+#tcltest::test method-1.8 {instance method can call type method} -body {
+#    type dog {
+#        typemethod hello {} {
+#            return "Hello"
+#        }
+#        method helloworld {} {
+#            return "[$type hello], World!"
+#        }
+#    }
+#
+#    dog create spot
+#    spot helloworld
+#} -cleanup {
+#    dog destroy
+#} -result {Hello, World!}
+#
+#tcltest::test method-1.9 {type methods must be qualified} -body {
+#    type dog {
+#        typemethod hello {} {
+#            return "Hello"
+#        }
+#        method helloworld {} {
+#            return "[hello], World!"
+#        }
+#    }
+#
+#    dog create spot
+#    spot helloworld
+#} -cleanup {
+#    dog destroy
+#} -returnCodes {
+#    error
+#} -result {invalid command name "hello"}
+#
+
+# Case 1
+tcltest::test method-1.10 {too few arguments} -body {
+    type dog {
+	method bark {volume} { }
+    }
+
+    dog create spot
+    spot bark
+} -cleanup {
+    dog destroy
+} -returnCodes {
+    error
+} -result {wrong # args: should be "spot bark volume"}
+
+tcltest::test method-1.12 {too many arguments} -body {
+    type dog {
+	method bark {volume} { }
+    }
+
+    dog create spot
+
+    spot bark really loud
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {wrong # args: should be "spot bark volume"}
+
+tcltest::test method-1.14 {method args can't include type} -body {
+    type dog {
+        method foo {a type b} { }
+    }
+} -returnCodes {
+    error
+} -cleanup {
+} -result {method foo's arglist may not contain "type" explicitly}
+
+tcltest::test method-1.15 {method args can't include self} -body {
+    type dog {
+        method foo {a self b} { }
+    }
+} -returnCodes {
+    error
+} -cleanup {
+} -result {method foo's arglist may not contain "self" explicitly}
+
+
+tcltest::test method-1.16 {method args can span multiple lines} -body {
+    # This case caused an error at definition time in 0.9 because the
+    # arguments were included in a comment in the compile script, and
+    # the subsequent lines weren't commented.
+    type dog {
+        method foo {
+                    a
+                    b
+                } { }
+    }
+} -cleanup {
+    dog destroy
+} -result {::dog}
+
+tcltest::cleanupTests

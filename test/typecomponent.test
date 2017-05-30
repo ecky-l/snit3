@@ -1,0 +1,65 @@
+
+
+#-----------------------------------------------------------------------
+# Type components
+
+::tcltest::test typecomponent-1.1 {typecomponent defines typevariable} -body {
+    type dog {
+        typecomponent mycomp
+
+        typemethod test {} {
+            return $mycomp
+        }
+    }
+
+    dog test
+} -cleanup {
+    dog destroy
+} -result {}
+
+::tcltest::test typecomponent-1.2 {typecomponent trace executes} -body {
+    type dog {
+        typecomponent mycomp
+
+        typemethod test {} {
+            typevariable Snit_typecomponents
+            set mycomp foo
+            return $Snit_typecomponents(mycomp)
+        }
+    }
+
+    dog test
+} -cleanup {
+    dog destroy
+} -result {foo}
+
+::tcltest::test typecomponent-1.3 {typecomponent -public works} -body {
+    type dog {
+        typecomponent mycomp -public string
+
+        typeconstructor {
+            set mycomp string
+        }
+    }
+
+    dog string length foo
+} -cleanup {
+    dog destroy
+} -result {3}
+
+::tcltest::test typecomponent-1.4 {typecomponent -inherit yes} -body {
+    type dog {
+        typecomponent mycomp -inherit yes
+
+        typeconstructor {
+            set mycomp string
+        }
+    }
+
+    dog length foo
+} -cleanup {
+    dog destroy
+} -result {3}
+
+
+tcltest::cleanupTests

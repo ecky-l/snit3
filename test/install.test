@@ -1,0 +1,360 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# install
+#
+# The install command is used to install widget components, while getting
+# options for the option database.
+
+::tcltest::test install-1.1 {installed components are created properly} -constraints {
+    tk
+} -body {
+    widget myframe {
+        # Delegate an option just to make sure the component variable
+        # exists.
+        delegate option -font to text
+
+        constructor {args} {
+            install text using text $win.text -background green
+        }
+
+        method getit {} {
+            $win.text cget -background
+        }
+    }
+
+    myframe .frm
+    set a [.frm getit]
+    destroy .frm
+    tkbide
+    set a
+} -cleanup {
+    myframe destroy
+} -result {green}
+
+::tcltest::test install-1.2 {installed components are saved properly} -constraints {
+    tk
+} -body {
+    widget myframe {
+        # Delegate an option just to make sure the component variable
+        # exists.
+        delegate option -font to text
+
+        constructor {args} {
+            install text using text $win.text -background green
+        }
+
+        method getit {} {
+            $text cget -background
+        }
+    }
+
+    myframe .frm
+    set a [.frm getit]
+    destroy .frm
+    tkbide
+    set a
+} -cleanup {
+    myframe destroy
+} -result {green}
+
+::tcltest::test install-1.3 {can't install until hull exists} -constraints {
+    tk
+} -body {
+    widgetadaptor myframe {
+        # Delegate an option just to make sure the component variable
+        # exists.
+        delegate option -font to text
+
+        constructor {args} {
+            install text using text $win.text -background green
+        }
+    }
+
+    myframe .frm
+} -returnCodes {
+    error
+} -cleanup {
+    myframe destroy
+} -result {Error in constructor: tried to install "text" before the hull exists}
+
+::tcltest::test install-1.4 {install queries option database} -constraints {
+    tk
+} -body {
+    widget myframe {
+        delegate option -font to text
+
+        typeconstructor {
+            option add *Myframe.font Courier
+        }
+
+        constructor {args} {
+            install text using text $win.text
+        }
+    }
+
+    myframe .frm
+    set a [.frm cget -font]
+    destroy .frm
+    tkbide
+    set a
+} -cleanup {
+    myframe destroy
+} -result {Courier}
+
+::tcltest::test install-1.5 {explicit options override option database} -constraints {
+    tk
+} -body {
+    widget myframe {
+        delegate option -font to text
+
+        typeconstructor {
+            option add *Myframe.font Courier
+        }
+
+        constructor {args} {
+            install text using text $win.text -font Times
+        }
+    }
+
+    myframe .frm
+    set a [.frm cget -font]
+    destroy .frm
+    tkbide
+    set a
+} -cleanup {
+    myframe destroy
+} -result {Times}
+
+::tcltest::test install-1.6 {option db works with targetted options} -constraints {
+    tk
+} -body {
+    widget myframe {
+        delegate option -textfont to text as -font
+
+        typeconstructor {
+            option add *Myframe.textfont Courier
+        }
+
+        constructor {args} {
+            install text using text $win.text
+        }
+    }
+
+    myframe .frm
+    set a [.frm cget -textfont]
+    destroy .frm
+    tkbide
+    set a
+} -cleanup {
+    myframe destroy
+} -result {Courier}
+
+::tcltest::test install-1.7 {install works for snit::types} -body {
+    type tail {
+        option -tailcolor black
+    }
+
+    type dog {
+        delegate option -tailcolor to tail
+
+        constructor {args} {
+            install tail using tail $self.tail
+        }
+    }
+
+    dog fido
+    fido cget -tailcolor
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {black}
+
+::tcltest::test install-1.8 {install can install non-widget components} -constraints {
+    tk
+} -body {
+    type dog {
+        option -tailcolor black
+    }
+
+    widget myframe {
+        delegate option -tailcolor to thedog
+
+        typeconstructor {
+            option add *Myframe.tailcolor green
+        }
+
+        constructor {args} {
+            install thedog using dog $win.dog
+        }
+    }
+
+    myframe .frm
+    set a [.frm cget -tailcolor]
+    destroy .frm
+    tkbide
+    set a
+
+} -cleanup {
+    dog destroy
+    myframe destroy
+} -result {green}
+
+::tcltest::test install-1.9 {ok if no options are delegated to component} -constraints {
+    tk
+} -body {
+    type dog {
+        option -tailcolor black
+    }
+
+    widget myframe {
+        constructor {args} {
+            install thedog using dog $win.dog
+        }
+    }
+
+    myframe .frm
+    destroy .frm
+    tkbide
+
+    # Test passes if no error is raised.
+    list ok
+} -cleanup {
+    myframe destroy
+    dog destroy
+} -result {ok}
+
+::tcltest::test install-2.1 {
+    delegate option * for a non-shadowed option.  The text widget's
+    -foreground and -font options should be set according to what's
+    in the option database on the widgetclass.
+} -constraints {
+    tk
+} -body {
+    widget myframe {
+        delegate option * to text
+
+        typeconstructor {
+            option add *Myframe.foreground red
+            option add *Myframe.font {Times 14}
+        }
+
+        constructor {args} {
+            install text using text $win.text
+        }
+    }
+
+    myframe .frm
+    set a [.frm cget -foreground]
+    set b [.frm cget -font]
+    destroy .frm
+    tkbide
+
+    list $a $b
+} -cleanup {
+    myframe destroy
+} -result {red {Times 14}}
+
+::tcltest::test install-2.2 {
+    Delegate option * for a shadowed option.  Foreground is declared
+    as a non-delegated option, hence it will pick up the option database
+    default.  -foreground is not included in the "delegate option *", so
+    the text widget's -foreground option will not be set from the
+    option database.
+} -constraints {
+    tk
+} -body {
+    widget myframe {
+        option -foreground white
+        delegate option * to text
+
+        typeconstructor {
+            option add *Myframe.foreground red
+        }
+
+        constructor {args} {
+            install text using text $win.text
+        }
+
+        method getit {} {
+            $text cget -foreground
+        }
+    }
+
+    myframe .frm
+    set a [.frm cget -foreground]
+    set b [.frm getit]
+    destroy .frm
+    tkbide
+
+    expr {![string equal $a $b]}
+} -cleanup {
+    myframe destroy
+} -result {1}
+
+::tcltest::test install-2.3 {
+    Delegate option * for a creation option.  Because the text widget's
+    -foreground is set explicitly by the constructor, that always
+    overrides the option database.
+} -constraints {
+    tk
+} -body {
+    widget myframe {
+        delegate option * to text
+
+        typeconstructor {
+            option add *Myframe.foreground red
+        }
+
+        constructor {args} {
+            install text using text $win.text -foreground blue
+        }
+    }
+
+    myframe .frm
+    set a [.frm cget -foreground]
+    destroy .frm
+    tkbide
+
+    set a
+} -cleanup {
+    myframe destroy
+} -result {blue}
+
+::tcltest::test install-2.4 {
+    Delegate option * with an excepted option.  Because the text widget's
+    -state is excepted, it won't be set from the option database.
+} -constraints {
+    tk
+} -body {
+    widget myframe {
+        delegate option * to text except -state
+
+        typeconstructor {
+            option add *Myframe.foreground red
+            option add *Myframe.state disabled
+        }
+
+        constructor {args} {
+            install text using text $win.text
+        }
+
+        method getstate {} {
+            $text cget -state
+        }
+    }
+
+    myframe .frm
+    set a [.frm getstate]
+    destroy .frm
+    tkbide
+
+    set a
+} -cleanup {
+    myframe destroy
+} -result {normal}
+
+
+tcltest::cleanupTests

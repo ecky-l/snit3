@@ -1,0 +1,364 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# Type Introspection
+
+# Case 1
+::tcltest::test tinfo-1.1 {type info too few args} -constraints {
+    snit1
+} -body {
+    type dog { }
+
+    dog info
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result [tcltest::wrongNumArgs ::snit::RT.typemethod.info {type command args} 1]
+
+# Case 2
+::tcltest::test tinfo-1.2 {type info too few args} -constraints {
+    snit2
+} -body {
+    type dog { }
+
+    dog info
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result [expect \
+	       {wrong # args: should be "dog info command ?arg ...?"} \
+	       {wrong # args: should be "dog info command ..."}]
+
+::tcltest::test tinfo-1.3 {type info too many args} -body {
+    type dog { }
+
+    dog info instances foo bar
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result [tcltest::tooManyArgs ::snit::RT.typemethod.info.instances {type ?pattern?}]
+
+::tcltest::test tinfo-2.1 {type info typevars} -body {
+    type dog {
+        typevariable thisvar 1
+
+        constructor {args} {
+            typevariable thatvar 2
+        }
+    }
+
+    dog create spot
+    lsort [dog info typevars]
+} -cleanup {
+    dog destroy
+} -result {::dog::thatvar ::dog::thisvar}
+
+::tcltest::test tinfo-3.1 {type info instances} -body {
+    type dog { }
+
+    dog create spot
+    dog create fido
+
+    lsort [dog info instances]
+} -cleanup {
+    dog destroy
+} -result {::fido ::spot}
+
+::tcltest::test tinfo-3.2 {widget info instances} -constraints {
+    tk
+} -body {
+    widgetadaptor mylabel {
+        constructor {args} {
+            installhull [label $self]
+        }
+    }
+
+    mylabel .lab1
+    mylabel .lab2
+
+    set result [mylabel info instances]
+
+    destroy .lab1
+    destroy .lab2
+    tkbide
+
+    lsort $result
+} -cleanup {
+    mylabel destroy
+} -result {.lab1 .lab2}
+
+::tcltest::test tinfo-3.3 {type info instances with non-global namespaces} -body {
+    type dog { }
+
+    dog create ::spot
+
+    namespace eval ::dogs:: {
+        set ::qname [dog create fido]
+    }
+
+    list $qname [lsort [dog info instances]]
+} -cleanup {
+    dog destroy
+} -result {::dogs::fido {::dogs::fido ::spot}}
+
+::tcltest::test tinfo-3.4 {type info instances with pattern} -body {
+    type dog { }
+
+    dog create spot
+    dog create fido
+
+    dog info instances "*f*"
+} -cleanup {
+    dog destroy
+} -result {::fido}
+
+::tcltest::test tinfo-3.5 {type info instances with unrelated child namespace, bug 2898640} -body {
+    type dog { }
+    namespace eval dog::unrelated {}
+    dog create fido
+
+    dog info instances
+} -cleanup {
+    dog destroy
+} -result {::fido}
+
+::tcltest::test tinfo-4.1 {type info typevars with pattern} -body {
+    type dog {
+        typevariable thisvar 1
+
+        constructor {args} {
+            typevariable thatvar 2
+        }
+    }
+
+    dog create spot
+    dog info typevars *this*
+} -cleanup {
+    dog destroy
+} -result {::dog::thisvar}
+
+::tcltest::test tinfo-5.1 {type info typemethods, simple case} -body {
+    type dog { }
+
+    lsort [dog info typemethods]
+} -cleanup {
+    dog destroy
+} -result {create destroy info}
+
+::tcltest::test tinfo-5.2 {type info typemethods, with pattern} -body {
+    type dog { }
+
+    dog info typemethods i*
+} -cleanup {
+    dog destroy
+} -result {info}
+
+::tcltest::test tinfo-5.3 {type info typemethods, with explicit typemethods} -body {
+    type dog {
+        typemethod foo {} {}
+        delegate typemethod bar to comp
+    }
+
+    lsort [dog info typemethods]
+} -cleanup {
+    dog destroy
+} -result {bar create destroy foo info}
+
+::tcltest::test tinfo-5.4 {type info typemethods, with implicit typemethods} -body {
+    type dog {
+        delegate typemethod * to comp
+
+        typeconstructor {
+            set comp string
+        }
+    }
+
+    set a [lsort [dog info typemethods]]
+
+    dog length foo
+    dog is boolean yes
+
+    set b [lsort [dog info typemethods]]
+
+    set c [dog info typemethods len*]
+
+    list $a $b $c
+} -cleanup {
+    dog destroy
+} -result {{create destroy info} {create destroy info is length} length}
+
+::tcltest::test tinfo-5.5 {info typemethods, with hierarchical typemethods} -body {
+    type dog {
+        delegate typemethod {comp foo} to comp
+
+        typemethod {comp bar} {} {}
+    }
+
+    lsort [dog info typemethods]
+} -cleanup {
+    dog destroy
+} -result {{comp bar} {comp foo} create destroy info}
+
+::tcltest::test tinfo-6.1 {type info args} -body {
+    type dog {
+	typemethod bark {volume} {}
+    }
+
+    dog info args bark
+} -cleanup {
+    dog destroy
+} -result {volume}
+
+::tcltest::test tinfo-6.2 {type info args, too few args} -body {
+    type dog {
+	typemethod bark {volume} {}
+    }
+
+    dog info args
+} -returnCodes error -cleanup {
+    dog destroy
+} -result [tcltest::wrongNumArgs ::snit::RT.typemethod.info.args {type method} 1]
+
+::tcltest::test tinfo-6.3 {type info args, too many args} -body {
+    type dog {
+	typemethod bark {volume} {}
+    }
+
+    dog info args bark wag
+} -returnCodes error -cleanup {
+    dog destroy
+} -result [tcltest::tooManyArgs ::snit::RT.typemethod.info.args {type method}]
+
+::tcltest::test tinfo-6.4 {type info args, unknown method} -body {
+    type dog {
+    }
+
+    dog info args bark
+} -returnCodes error -cleanup {
+    dog destroy
+} -result {Unknown typemethod "bark"}
+
+::tcltest::test tinfo-6.5 {type info args, delegated method} -body {
+    type dog {
+	delegate typemethod bark to x
+    }
+
+    dog info args bark
+} -returnCodes error -cleanup {
+    dog destroy
+} -result {Delegated typemethod "bark"}
+
+::tcltest::test tinfo-7.1 {type info default} -body {
+    type dog {
+	typemethod bark {{volume 50}} {}
+    }
+
+    list [dog info default bark volume def] $def
+} -cleanup {
+    dog destroy
+} -result {1 50}
+
+::tcltest::test tinfo-7.2 {type info default, too few args} -body {
+    type dog {
+	typemethod bark {volume} {}
+    }
+
+    dog info default
+} -returnCodes error -cleanup {
+    dog destroy
+} -result [tcltest::wrongNumArgs ::snit::RT.typemethod.info.default {type method aname dvar} 1]
+
+::tcltest::test tinfo-7.3 {type info default, too many args} -body {
+    type dog {
+	typemethod bark {volume} {}
+    }
+
+    dog info default bark wag def foo
+} -returnCodes error -cleanup {
+    dog destroy
+} -result [tcltest::tooManyArgs ::snit::RT.typemethod.info.default {type method aname dvar}]
+
+::tcltest::test tinfo-7.4 {type info default, unknown method} -body {
+    type dog {
+    }
+
+    dog info default bark x var
+} -returnCodes error -cleanup {
+    dog destroy
+} -result {Unknown typemethod "bark"}
+
+::tcltest::test tinfo-7.5 {type info default, delegated method} -body {
+    type dog {
+	delegate typemethod bark to x
+    }
+
+    dog info default bark x var
+} -returnCodes error -cleanup {
+    dog destroy
+} -result {Delegated typemethod "bark"}
+
+::tcltest::test tinfo-8.1 {type info body} -body {
+    type dog {
+	typevariable x
+	variable y
+	typemethod bark {volume} {
+	    speaker on
+	    speaker play bark.snd
+	    speaker off
+	}
+    }
+
+    dog info body bark
+} -cleanup {
+    dog destroy
+} -result {
+	    speaker on
+	    speaker play bark.snd
+	    speaker off
+	}
+
+::tcltest::test tinfo-8.2 {type info body, too few args} -body {
+    type dog {
+	typemethod bark {volume} {}
+    }
+
+    dog info body
+} -returnCodes error -cleanup {
+    dog destroy
+} -result [tcltest::wrongNumArgs ::snit::RT.typemethod.info.body {type method} 1]
+
+::tcltest::test tinfo-8.3 {type info body, too many args} -body {
+    type dog {
+	typemethod bark {volume} {}
+    }
+
+    dog info body bark wag
+} -returnCodes error -cleanup {
+    dog destroy
+} -result [tcltest::tooManyArgs ::snit::RT.typemethod.info.body {type method}]
+
+::tcltest::test tinfo-8.4 {type info body, unknown method} -body {
+    type dog {
+    }
+
+    dog info body bark
+} -returnCodes error -cleanup {
+    dog destroy
+} -result {Unknown typemethod "bark"}
+
+::tcltest::test tinfo-8.5 {type info body, delegated method} -body {
+    type dog {
+	delegate typemethod bark to x
+    }
+
+    dog info body bark
+} -returnCodes error -cleanup {
+    dog destroy
+} -result {Delegated typemethod "bark"}
+
+tcltest::cleanupTests

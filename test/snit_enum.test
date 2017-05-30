@@ -1,0 +1,33 @@
+
+
+#-----------------------------------------------------------------------
+# snit::enum
+
+::tcltest::test enum-1.1 {enum: valid} -body {
+    snit::enum validate foo
+} -result {foo}
+
+::tcltest::test enum-2.1 {enum subtype: missing -values} -body {
+    snit::enum subtype
+} -returnCodes {
+    error
+} -result {Error in constructor: invalid -values: ""}
+
+::tcltest::test enum-3.1 {enum subtype: valid} -body {
+    snit::enum subtype -values {foo bar baz}
+    subtype validate foo
+    subtype validate bar
+    subtype validate baz
+} -cleanup {
+    subtype destroy
+} -result {baz}
+
+::tcltest::test enum-3.2 {enum subtype: invalid} -body {
+    snit::enum subtype -values {foo bar baz}
+    codecatch {subtype validate quux}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid value "quux", should be one of: foo, bar, baz}
+
+
+tcltest::cleanupTests

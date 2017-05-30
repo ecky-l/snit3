@@ -1,0 +1,78 @@
+
+
+
+#-----------------------------------------------------------------------
+# pragma -hastypemethods
+#
+# The "-hastypemethods yes" case is tested by the bulk of this file.
+# We'll test the "-hastypemethods no" case here.
+
+::tcltest::test hastypemethods-1.1 {-hastypemethods no, $type foo creates instance.} -body {
+    type dog {
+        pragma -hastypemethods no
+        variable foo
+    }
+
+    dog spot
+} -cleanup {
+    spot destroy
+    rename ::dog ""
+    namespace delete ::dog
+} -result {::spot}
+
+::tcltest::test hastypemethods-1.2 {-hastypemethods no, $type create foo fails.} -body {
+    type dog {
+	pragma -hastypemethods no
+	variable foo
+    }
+
+    dog create spot
+} -returnCodes {
+    error
+} -cleanup {
+    rename ::dog ""
+    namespace delete ::dog
+} -result "Error in constructor: [tcltest::tooManyArgs ::dog::Snit_constructor {type selfns win self}]"
+
+::tcltest::test hastypemethods-1.3 {-hastypemethods no, $type info fails.} -body {
+    type dog {
+        pragma -hastypemethods no
+        variable foo
+    }
+
+    dog info
+} -returnCodes {
+    error
+} -cleanup {
+    rename ::dog ""
+    namespace delete ::dog
+} -result {command "::info" already exists}
+
+::tcltest::test hastypemethods-1.4 {-hastypemethods no, [$widget] fails.} -constraints {
+    tk
+} -body {
+    widget dog {
+        pragma -hastypemethods no
+        variable foo
+    }
+
+    dog
+} -returnCodes {
+    error
+} -cleanup {
+    rename ::dog ""
+    namespace delete ::dog
+} -result {wrong # args: should be "::dog name args"}
+
+::tcltest::test hastypemethods-1.5 {-hastypemethods no, -hasinstances no fails.} -body {
+    type dog {
+        pragma -hastypemethods no
+        pragma -hasinstances no
+        variable foo
+    }
+} -returnCodes {
+    error
+} -result {type ::dog has neither typemethods nor instances}
+
+
+tcltest::cleanupTests

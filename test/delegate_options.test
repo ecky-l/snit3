@@ -1,0 +1,287 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# delegated options
+
+::tcltest::test doption-1.1 {delegate option to non-existent component} -body {
+    type dog {
+        delegate option -foo to bar
+    }
+
+    dog create spot
+    spot cget -foo
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {component "bar" is undefined in ::dog ::spot}
+
+::tcltest::test doption-1.2 {delegating option to existing component: cget} -body {
+    type cat {
+        option -color "black"
+    }
+
+    cat create hershey
+
+    type dog {
+        constructor {args} {
+            set catthing ::hershey
+        }
+
+        delegate option -color to catthing
+    }
+
+    dog create spot
+    spot cget -color
+} -cleanup {
+    dog destroy
+    cat destroy
+} -result {black}
+
+::tcltest::test doption-1.3 {delegating option to existing component: configure} -body {
+    type cat {
+        option -color "black"
+    }
+
+    cat create hershey
+
+    type dog {
+        constructor {args} {
+            set catthing ::hershey
+            $self configurelist $args
+        }
+
+        delegate option -color to catthing
+    }
+
+    dog create spot -color blue
+    list [spot cget -color] [hershey cget -color]
+} -cleanup {
+    dog destroy
+    cat destroy
+} -result {blue blue}
+
+::tcltest::test doption-1.4 {delegating unknown options to existing component} -body {
+    type cat {
+        option -color "black"
+    }
+
+    cat create hershey
+
+    type dog {
+        constructor {args} {
+            set catthing ::hershey
+
+            # Note: must do this after components are defined; this
+            # may be a problem.
+            $self configurelist $args
+        }
+
+        delegate option * to catthing
+    }
+
+    dog create spot -color blue
+    list [spot cget -color] [hershey cget -color]
+} -cleanup {
+    dog destroy
+    cat destroy
+} -result {blue blue}
+
+::tcltest::test doption-1.5 {can't oncget for delegated option} -body {
+    type dog {
+        delegate option -color to catthing
+
+        oncget -color { }
+    }
+} -returnCodes {
+    error
+} -result {Error in "oncget -color...", option "-color" is delegated}
+
+::tcltest::test doption-1.6 {can't onconfigure for delegated option} -body {
+    type dog {
+        delegate option -color to catthing
+
+        onconfigure -color {value} { }
+    }
+} -returnCodes {
+    error
+} -result {onconfigure -color: option "-color" is delegated}
+
+::tcltest::test doption-1.7 {delegating unknown options to existing component: error} -body {
+    type cat {
+        option -color "black"
+    }
+
+    cat create hershey
+
+    type dog {
+        constructor {args} {
+            set catthing ::hershey
+            $self configurelist $args
+        }
+
+        delegate option * to catthing
+    }
+
+    dog create spot -colour blue
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+    cat destroy
+} -result {Error in constructor: unknown option "-colour"}
+
+::tcltest::test doption-1.8 {can't delegate local option: order 1} -body {
+    type cat {
+        option -color "black"
+        delegate option -color to hull
+    }
+} -returnCodes {
+    error
+} -result {Error in "delegate option -color...", "-color" has been defined locally}
+
+::tcltest::test doption-1.9 {can't delegate local option: order 2} -body {
+    type cat {
+        delegate option -color to hull
+        option -color "black"
+    }
+} -returnCodes {
+    error
+} -result {Error in "option -color...", cannot define "-color" locally, it has been delegated}
+
+::tcltest::test doption-1.10 {excepted options are caught properly on cget} -body {
+    type tail {
+        option -a a
+        option -b b
+        option -c c
+    }
+
+    type cat {
+        delegate option * to tail except {-b -c}
+
+        constructor {args} {
+            set tail [tail %AUTO%]
+        }
+    }
+
+    cat fifi
+
+    catch {fifi cget -a} a
+    catch {fifi cget -b} b
+    catch {fifi cget -c} c
+
+    list $a $b $c
+} -cleanup {
+    cat destroy
+    tail destroy
+} -result {a {unknown option "-b"} {unknown option "-c"}}
+
+::tcltest::test doption-1.11 {excepted options are caught properly on configurelist} -body {
+    type tail {
+        option -a a
+        option -b b
+        option -c c
+    }
+
+    type cat {
+        delegate option * to tail except {-b -c}
+
+        constructor {args} {
+            set tail [tail %AUTO%]
+        }
+    }
+
+    cat fifi
+
+    catch {fifi configurelist {-a 1}} a
+    catch {fifi configurelist {-b 1}} b
+    catch {fifi configurelist {-c 1}} c
+
+    list $a $b $c
+} -cleanup {
+    cat destroy
+    tail destroy
+} -result {{} {unknown option "-b"} {unknown option "-c"}}
+
+::tcltest::test doption-1.12 {excepted options are caught properly on configure, 1} -body {
+    type tail {
+        option -a a
+        option -b b
+        option -c c
+    }
+
+    type cat {
+        delegate option * to tail except {-b -c}
+
+        constructor {args} {
+            set tail [tail %AUTO%]
+        }
+    }
+
+    cat fifi
+
+    catch {fifi configure -a 1} a
+    catch {fifi configure -b 1} b
+    catch {fifi configure -c 1} c
+
+    list $a $b $c
+} -cleanup {
+    cat destroy
+    tail destroy
+} -result {{} {unknown option "-b"} {unknown option "-c"}}
+
+::tcltest::test doption-1.13 {excepted options are caught properly on configure, 2} -body {
+    type tail {
+        option -a a
+        option -b b
+        option -c c
+    }
+
+    type cat {
+        delegate option * to tail except {-b -c}
+
+        constructor {args} {
+            set tail [tail %AUTO%]
+        }
+    }
+
+    cat fifi
+
+    catch {fifi configure -a} a
+    catch {fifi configure -b} b
+    catch {fifi configure -c} c
+
+    list $a $b $c
+} -cleanup {
+    cat destroy
+    tail destroy
+} -result {{-a a A a a} {unknown option "-b"} {unknown option "-c"}}
+
+::tcltest::test doption-1.14 {configure query skips excepted options} -body {
+    type tail {
+        option -a a
+        option -b b
+        option -c c
+    }
+
+    type cat {
+        option -d d
+        delegate option * to tail except {-b -c}
+
+        constructor {args} {
+            set tail [tail %AUTO%]
+        }
+    }
+
+    cat fifi
+
+    fifi configure
+} -cleanup {
+    cat destroy
+    tail destroy
+} -result {{-d d D d d} {-a a A a a}}
+
+
+tcltest::cleanupTests

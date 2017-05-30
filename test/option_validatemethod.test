@@ -1,0 +1,99 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# option -validatemethod
+
+::tcltest::test validatemethod-1.1 {Validate method is called} -body {
+    type dog {
+        variable flag 0
+
+        option -color \
+            -default black \
+            -validatemethod ValidateColor
+
+        method ValidateColor {option value} {
+            set flag 1
+        }
+
+        method getflag {} {
+            return $flag
+        }
+    }
+
+    dog fido -color brown
+    fido getflag
+} -cleanup {
+    dog destroy
+} -result {1}
+
+::tcltest::test validatemethod-1.2 {Validate method gets correct arguments} -body {
+    type dog {
+        option -color \
+            -default black \
+            -validatemethod ValidateColor
+
+        method ValidateColor {option value} {
+            if {![string equal $option "-color"] ||
+                ![string equal $value "brown"]} {
+                error "Expected '-color brown'"
+            }
+        }
+    }
+
+    dog fido -color brown
+} -cleanup {
+    dog destroy
+} -result {::fido}
+
+# Case 1
+::tcltest::test validatemethod-1.3 {Invalid -validatemethod causes error} -constraints {
+    snit1
+} -body {
+    type dog {
+        option -foo -default bar -validatemethod bogus
+    }
+
+    dog fido
+    fido configure -foo quux
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {can't validate -foo, "::fido bogus" is not defined}
+
+# Case 2
+::tcltest::test validatemethod-1.4 {Invalid -validatemethod causes error} -constraints {
+    snit2
+} -body {
+    type dog {
+        option -foo -default bar -validatemethod bogus
+    }
+
+    dog fido
+    fido configure -foo quux
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {unknown subcommand "bogus": must be configure, or configurelist}
+
+::tcltest::test validatemethod-1.5 {hierarchical -validatemethod} -body {
+    type dog {
+        option -foo -default bar -validatemethod {Val Opt}
+
+        method {Val Opt} {option value} {
+            error "Dummy"
+        }
+    }
+
+    dog fido -foo value
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {Error in constructor: Dummy}
+
+
+tcltest::cleanupTests

@@ -1,0 +1,54 @@
+
+
+
+#-----------------------------------------------------------------------
+# Pragma -hastypedestroy
+
+::tcltest::test hastypedestroy-1.1 {$type destroy is defined by default} -body {
+    type dog {
+        typevariable foo
+    }
+
+    dog destroy
+
+    ::dog info typevars
+} -returnCodes {
+    error
+} -result {invalid command name "::dog"}
+
+# Case 1
+::tcltest::test hastypedestroy-1.2 {$type destroy can be disabled} -constraints {
+    snit1
+} -body {
+    type dog {
+        pragma -hastypedestroy no
+        typevariable foo
+    }
+
+    dog destroy
+} -returnCodes {
+    error
+} -cleanup {
+    rename ::dog ""
+    namespace delete ::dog
+} -result {"::dog destroy" is not defined}
+
+# Case 2
+::tcltest::test hastypedestroy-1.3 {$type destroy can be disabled} -constraints {
+    snit2
+} -body {
+    type dog {
+        pragma -hastypedestroy no
+        typevariable foo
+    }
+
+    dog destroy
+} -returnCodes {
+    error
+} -cleanup {
+    rename ::dog ""
+    namespace delete ::dog
+} -result {unknown subcommand "destroy": namespace ::dog does not export any commands}
+
+
+tcltest::cleanupTests

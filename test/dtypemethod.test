@@ -1,0 +1,493 @@
+
+
+
+#-----------------------------------------------------------------------
+# Typemethod delegation
+
+::tcltest::test dtypemethod-1.1 {delegate typemethod to non-existent component} -body {
+    set result ""
+
+    type dog {
+        delegate typemethod foo to bar
+    }
+
+    dog foo
+} -returnCodes {
+    error
+} -result {::dog delegates typemethod "foo" to undefined typecomponent "bar"}
+
+::tcltest::test dtypemethod-1.2 {delegating to existing typecomponent} -body {
+    type dog {
+        delegate typemethod length to string
+
+        typeconstructor {
+            set string string
+        }
+    }
+
+    dog length foo
+} -cleanup {
+    dog destroy
+} -result {3}
+
+# Case 1
+::tcltest::test dtypemethod-1.3 {delegating to existing typecomponent with error} -constraints {
+    snit1
+} -body {
+    type dog {
+        delegate typemethod length to string
+
+        typeconstructor {
+            set string string
+        }
+    }
+
+    dog length foo bar
+} -returnCodes {
+    error
+} -result {wrong # args: should be "string length string"}
+
+# Case 2
+::tcltest::test dtypemethod-1.4 {delegating to existing typecomponent with error} -constraints {
+    snit2
+} -body {
+    type dog {
+        delegate typemethod length to string
+
+        typeconstructor {
+            set string string
+        }
+    }
+
+    dog length foo bar
+} -returnCodes {
+    error
+} -result {wrong # args: should be "dog length string"}
+
+::tcltest::test dtypemethod-1.5 {delegating unknown typemethods to existing typecomponent} -body {
+    type dog {
+        delegate typemethod * to string
+
+        typeconstructor {
+            set string string
+        }
+    }
+
+    dog length foo
+} -cleanup {
+    dog destroy
+} -result {3}
+
+# Case 1
+::tcltest::test dtypemethod-1.6 {delegating unknown typemethod to existing typecomponent with error} -body {
+    type dog {
+        delegate typemethod * to stringhandler
+
+        typeconstructor {
+            set stringhandler string
+        }
+    }
+
+    dog foo bar
+} -constraints {
+    snit1
+} -returnCodes {
+    error
+} -result {bad option "foo": must be bytelength, compare, equal, first, index, is, last, length, map, match, range, repeat, replace, tolower, toupper, totitle, trim, trimleft, trimright, wordend, or wordstart}
+
+::tcltest::test dtypemethod-1.6a.0 {delegating unknown typemethod to existing typecomponent with error} -body {
+    type dog {
+        delegate typemethod * to stringhandler
+
+        typeconstructor {
+            set stringhandler string
+        }
+    }
+
+    dog foo bar
+} -constraints {
+    snit2 tcl8.5minus
+} -returnCodes {
+    error
+} -result {unknown or ambiguous subcommand "foo": must be bytelength, compare, equal, first, index, is, last, length, map, match, range, repeat, replace, reverse, tolower, totitle, toupper, trim, trimleft, trimright, wordend, or wordstart}
+
+::tcltest::test dtypemethod-1.6a.1 {delegating unknown typemethod to existing typecomponent with error} -body {
+    type dog {
+        delegate typemethod * to stringhandler
+
+        typeconstructor {
+            set stringhandler string
+        }
+    }
+
+    dog foo bar
+} -constraints {
+    snit2 tcl8.6plus
+} -returnCodes {
+    error
+} -result {unknown or ambiguous subcommand "foo": must be bytelength, cat, compare, equal, first, index, is, last, length, map, match, range, repeat, replace, reverse, tolower, totitle, toupper, trim, trimleft, trimright, wordend, or wordstart}
+
+::tcltest::test dtypemethod-1.7 {can't delegate local typemethod: order 1} -body {
+    type dog {
+        typemethod foo {} {}
+        delegate typemethod foo to bar
+    }
+} -returnCodes {
+    error
+} -result {Error in "delegate typemethod foo...", "foo" has been defined locally.}
+
+::tcltest::test dtypemethod-1.8 {can't delegate local typemethod: order 2} -body {
+    type dog {
+        delegate typemethod foo to bar
+        typemethod foo {} {}
+    }
+} -returnCodes {
+    error
+} -result {Error in "typemethod foo...", "foo" has been delegated}
+
+# Case 1
+::tcltest::test dtypemethod-1.9 {excepted methods are caught properly} -constraints {
+    snit1
+} -body {
+    type dog {
+        delegate typemethod * to string except {match index}
+
+        typeconstructor {
+            set string string
+        }
+    }
+
+    catch {dog length foo} a
+    catch {dog match foo}  b
+    catch {dog index foo}  c
+
+    list $a $b $c
+} -cleanup {
+    dog destroy
+} -result {3 {"::dog match" is not defined} {"::dog index" is not defined}}
+
+# Case 2
+::tcltest::test dtypemethod-1.10 {excepted methods are caught properly} -constraints {
+    snit2
+} -body {
+    type dog {
+        delegate typemethod * to string except {match index}
+
+        typeconstructor {
+            set string string
+        }
+    }
+
+    catch {dog length foo} a
+    catch {dog match foo}  b
+    catch {dog index foo}  c
+
+    list $a $b $c
+} -cleanup {
+    dog destroy
+} -result {3 {unknown subcommand "match": must be length} {unknown subcommand "index": must be length}}
+
+::tcltest::test dtypemethod-1.11 {as clause can include arguments} -body {
+    proc tail {a b} {
+        return "<$a $b>"
+    }
+
+    type dog {
+        delegate typemethod wag to tail as {wag briskly}
+
+        typeconstructor {
+            set tail tail
+        }
+    }
+
+    dog wag
+} -cleanup {
+    dog destroy
+    rename tail ""
+} -result {<wag briskly>}
+
+::tcltest::test dtypemethod-2.1 {'using "%c %m"' gets normal behavior} -body {
+    type dog {
+        delegate typemethod length to string using {%c %m}
+
+        typeconstructor {
+            set string string
+        }
+    }
+
+    dog length foo
+} -cleanup {
+    dog destroy
+} -result {3}
+
+::tcltest::test dtypemethod-2.2 {All relevant 'using' conversions are converted} -body {
+    proc echo {args} {
+        return $args
+    }
+
+    type dog {
+        delegate typemethod {tail wag} using {echo %% %t %M %m %j %n %w %s %c}
+    }
+
+    dog tail wag
+} -cleanup {
+    dog destroy
+    rename echo ""
+} -result {% ::dog {tail wag} wag tail_wag %n %w %s %c}
+
+::tcltest::test dtypemethod-2.3 {"%%" is handled properly} -body {
+    proc echo {args} { join $args "|" }
+
+    type dog {
+        delegate typemethod wag using {echo %%m %%%m}
+    }
+
+    dog wag
+} -cleanup {
+    dog destroy
+    rename echo ""
+} -result {%m|%wag}
+
+::tcltest::test dtypemethod-2.4 {Method "*" and "using"} -body {
+    proc echo {args} { join $args "|" }
+
+    type dog {
+        delegate typemethod * using {echo %m}
+    }
+
+    list [dog wag] [dog bark loudly]
+} -cleanup {
+    dog destroy
+    rename echo ""
+} -result {wag bark|loudly}
+
+::tcltest::test dtypemethod-3.1 {typecomponent names can be changed dynamically} -body {
+    proc echo {args} { join $args "|" }
+
+    type dog {
+        delegate typemethod length to mycomp
+
+        typeconstructor {
+            set mycomp string
+        }
+
+        typemethod switchit {} {
+            set mycomp echo
+        }
+    }
+
+    set a [dog length foo]
+    dog switchit
+    set b [dog length foo]
+
+    list $a $b
+} -cleanup {
+    dog destroy
+    rename echo ""
+} -result {3 length|foo}
+
+::tcltest::test dtypemethod-4.1 {hierarchical typemethod, two tokens} -body {
+    type tail {
+        method wag {} {return "wags tail"}
+    }
+
+    type dog {
+        typeconstructor {
+            set tail [tail %AUTO%]
+        }
+        delegate typemethod {wag tail} to tail as wag
+    }
+
+    dog wag tail
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {wags tail}
+
+::tcltest::test dtypemethod-4.2 {hierarchical typemethod, three tokens} -body {
+    type tail {
+        method wag {} {return "wags tail"}
+    }
+
+    type dog {
+        typeconstructor {
+            set tail [tail %AUTO%]
+        }
+        delegate typemethod {wag tail proudly} to tail as wag
+    }
+
+    dog wag tail proudly
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {wags tail}
+
+::tcltest::test dtypemethod-4.3 {hierarchical typemethod, four tokens} -body {
+    type tail {
+        method wag {} {return "wags tail"}
+    }
+
+    type dog {
+        typeconstructor {
+            set tail [tail %AUTO%]
+        }
+        delegate typemethod {wag tail really high} to tail as wag
+    }
+
+    dog wag tail really high
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {wags tail}
+
+::tcltest::test dtypemethod-4.4 {redefinition is OK} -body {
+    type tail {
+        method {wag tail}    {} {return "wags tail"}
+        method {wag briskly} {} {return "wags tail briskly"}
+    }
+
+    type dog {
+        typeconstructor {
+            set tail [tail %AUTO%]
+        }
+        delegate typemethod {wag tail} to tail as {wag tail}
+        delegate typemethod {wag tail} to tail as {wag briskly}
+    }
+
+    dog wag tail
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {wags tail briskly}
+
+::tcltest::test dtypemethod-4.5 {last token is used by default} -body {
+    type tail {
+        method wag {} {return "wags tail"}
+    }
+
+    type dog {
+        typeconstructor {
+            set tail [tail %AUTO%]
+        }
+        delegate typemethod {tail wag} to tail
+    }
+
+    dog tail wag
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {wags tail}
+
+::tcltest::test dtypemethod-4.6 {last token can be *} -body {
+    type tail {
+        method wag {} {return "wags"}
+        method droop {} {return "droops"}
+    }
+
+    type dog {
+        typeconstructor {
+            set tail [tail %AUTO%]
+        }
+        delegate typemethod {tail *} to tail
+    }
+
+    list [dog tail wag] [dog tail droop]
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {wags droops}
+
+# Case 2
+::tcltest::test dtypemethod-4.7 {except with multiple tokens} -constraints {
+    snit1
+} -body {
+    type tail {
+        method wag {} {return "wags"}
+        method droop {} {return "droops"}
+    }
+
+    type dog {
+        typeconstructor {
+            set tail [tail %AUTO%]
+        }
+        delegate typemethod {tail *} to tail except droop
+    }
+
+    catch {dog tail droop} result
+
+    list [dog tail wag] $result
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {wags {"::dog tail droop" is not defined}}
+
+# Case 2
+::tcltest::test dtypemethod-4.8 {except with multiple tokens} -constraints {
+    snit2
+} -body {
+    type tail {
+        method wag {} {return "wags"}
+        method droop {} {return "droops"}
+    }
+
+    type dog {
+        typeconstructor {
+            set tail [tail %AUTO%]
+        }
+        delegate typemethod {tail *} to tail except droop
+    }
+
+    catch {dog tail droop} result
+
+    list [dog tail wag] $result
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {wags {unknown subcommand "droop": namespace ::dog does not export any commands}}
+
+::tcltest::test dtypemethod-4.9 {"*" in the wrong spot} -body {
+    type dog {
+        delegate typemethod {tail * wag} to tail
+    }
+} -returnCodes {
+    error
+} -result {Error in "delegate typemethod {tail * wag}...", "*" must be the last token.}
+
+::tcltest::test dtypemethod-5.1 {prefix/typemethod collision} -body {
+    type dog {
+        delegate typemethod wag to tail
+        delegate typemethod {wag tail} to tail as wag
+    }
+} -returnCodes {
+    error
+} -result {Error in "delegate typemethod {wag tail}...", "wag" has no submethods.}
+
+::tcltest::test dtypemethod-5.2 {prefix/typemethod collision} -body {
+    type dog {
+        delegate typemethod {wag tail} to tail as wag
+        delegate typemethod wag to tail
+    }
+} -returnCodes {
+    error
+} -result {Error in "delegate typemethod wag...", "wag" has submethods.}
+
+::tcltest::test dtypemethod-5.3 {prefix/typemethod collision} -body {
+    type dog {
+        delegate typemethod {wag tail} to tail
+        delegate typemethod {wag tail proudly} to tail as wag
+    }
+} -returnCodes {
+    error
+} -result {Error in "delegate typemethod {wag tail proudly}...", "wag tail" has no submethods.}
+
+::tcltest::test dtypemethod-5.4 {prefix/typemethod collision} -body {
+    type dog {
+        delegate typemethod {wag tail proudly} to tail as wag
+        delegate typemethod {wag tail} to tail
+    }
+} -returnCodes {
+    error
+} -result {Error in "delegate typemethod {wag tail}...", "wag tail" has submethods.}
+
+
+tcltest::cleanupTests

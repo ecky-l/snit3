@@ -1,0 +1,40 @@
+
+
+#-----------------------------------------------------------------------
+# type destruction
+
+::tcltest::test typedestruction-1.1 {type command is deleted} -body {
+    type dog { }
+    dog destroy
+    info command ::dog
+} -result {}
+
+::tcltest::test typedestruction-1.2 {instance commands are deleted} -body {
+    type dog { }
+
+    dog create spot
+    dog destroy
+    info command ::spot
+} -result {}
+
+::tcltest::test typedestruction-1.3 {type namespace is deleted} -body {
+    type dog { }
+    dog destroy
+    namespace exists ::dog
+} -result {0}
+
+::tcltest::test typedestruction-1.4 {type proc is destroyed on error} -body {
+    catch {type dog {
+        error "Error creating dog"
+    }} result
+
+    list [namespace exists ::dog] [info commands ::dog]
+} -result {0 {}}
+
+::tcltest::test typedestruction-1.5 {unrelated namespaces are deleted, bug 2898640} -body {
+    type dog {}
+    namespace eval dog::unrelated {}
+    dog destroy
+} -result {}
+
+tcltest::cleanupTests

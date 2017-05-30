@@ -1,0 +1,471 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# Widgetadaptors
+
+::tcltest::test widgetadaptor-1.1 {creating a widget: hull hijacking} -constraints {
+    tk
+} -body {
+    widgetadaptor mylabel {
+        constructor {args} {
+            installhull [label $self]
+            $self configurelist $args
+        }
+
+        delegate method * to hull
+        delegate option * to hull
+    }
+
+    mylabel create .label -text "My Label"
+
+    set a [.label cget -text]
+    set b [hull1.label cget -text]
+
+    destroy .label
+    tkbide
+    list $a $b
+} -cleanup {
+    mylabel destroy
+} -result {{My Label} {My Label}}
+
+::tcltest::test widgetadaptor-1.2 {destroying a widget with destroy} -constraints {
+    tk
+} -body {
+    widgetadaptor mylabel {
+        constructor {} {
+            installhull [label $self]
+        }
+    }
+
+    mylabel create .label
+    set a [namespace children ::mylabel]
+    destroy .label
+    set b [namespace children ::mylabel]
+    tkbide
+    list $a $b
+} -cleanup {
+    mylabel destroy
+} -result {::mylabel::Snit_inst1 {}}
+
+::tcltest::test widgetadaptor-1.3 {destroying two widgets of the same type with destroy} -constraints {
+    tk
+} -body {
+    widgetadaptor mylabel {
+        constructor {} {
+            installhull [label $self]
+        }
+    }
+
+    mylabel create .lab1
+    mylabel create .lab2
+    set a [namespace children ::mylabel]
+    destroy .lab1
+    destroy .lab2
+    set b [namespace children ::mylabel]
+    tkbide
+    list $a $b
+} -cleanup {
+    mylabel destroy
+} -result {{::mylabel::Snit_inst1 ::mylabel::Snit_inst2} {}}
+
+::tcltest::test widgetadaptor-1.4 {destroying a widget with rename, then destroy type} -constraints {
+    tk bug8.5a3
+} -body {
+    widgetadaptor mylabel {
+        constructor {} {
+            installhull [label $self]
+        }
+    }
+
+    mylabel create .label
+    set a [namespace children ::mylabel]
+    rename .label ""
+    set b [namespace children ::mylabel]
+
+    mylabel destroy
+    tkbide
+    list $a $b
+} -result {::mylabel::Snit_inst1 {}}
+
+::tcltest::test widgetadaptor-1.5 {destroying two widgets of the same type with rename} -constraints {
+    tk bug8.5a3
+} -body {
+    widgetadaptor mylabel {
+        constructor {} {
+            installhull [label $self]
+        }
+    }
+
+    mylabel create .lab1
+    mylabel create .lab2
+    set a [namespace children ::mylabel]
+    rename .lab1 ""
+    rename .lab2 ""
+    set b [namespace children ::mylabel]
+    mylabel destroy
+    tkbide
+    list $a $b
+} -result {{::mylabel::Snit_inst1 ::mylabel::Snit_inst2} {}}
+
+::tcltest::test widgetadaptor-1.6 {create/destroy twice, with destroy} -constraints {
+    tk
+} -body {
+    widgetadaptor mylabel {
+        constructor {} {
+            installhull [label $self]
+        }
+    }
+
+    mylabel create .lab1
+    set a [namespace children ::mylabel]
+    destroy .lab1
+
+    mylabel create .lab1
+    set b [namespace children ::mylabel]
+    destroy .lab1
+
+    set c [namespace children ::mylabel]
+    mylabel destroy
+    tkbide
+    list $a $b $c
+} -result {::mylabel::Snit_inst1 ::mylabel::Snit_inst2 {}}
+
+::tcltest::test widgetadaptor-1.7 {create/destroy twice, with rename} -constraints {
+    tk bug8.5a3
+} -body {
+    widgetadaptor mylabel {
+        constructor {} {
+            installhull [label $self]
+        }
+    }
+
+    mylabel create .lab1
+    set a [namespace children ::mylabel]
+    rename .lab1 ""
+
+    mylabel create .lab1
+    set b [namespace children ::mylabel]
+    rename .lab1 ""
+
+    set c [namespace children ::mylabel]
+    mylabel destroy
+    tkbide
+    list $a $b $c
+} -result {::mylabel::Snit_inst1 ::mylabel::Snit_inst2 {}}
+
+::tcltest::test widgetadaptor-1.8 {"create" is optional} -constraints {
+    tk
+} -body {
+    widgetadaptor mylabel {
+        constructor {args} {
+            installhull [label $self]
+        }
+        method howdy {} {return "Howdy!"}
+    }
+
+    mylabel .label
+    set a [.label howdy]
+
+    destroy .label
+    tkbide
+    set a
+} -cleanup {
+    mylabel destroy
+} -result {Howdy!}
+
+# Case 1
+::tcltest::test widgetadaptor-1.9 {"create" is optional, but must be a valid name} -constraints {
+    snit1
+    tk
+} -body {
+    widgetadaptor mylabel {
+        constructor {args} {
+            installhull [label $self]
+        }
+        method howdy {} {return "Howdy!"}
+    }
+
+    catch {mylabel foo} result
+    tkbide
+    set result
+} -cleanup {
+    mylabel destroy
+} -result {"::mylabel foo" is not defined}
+
+# Case 2
+::tcltest::test widgetadaptor-1.10 {"create" is optional, but must be a valid name} -constraints {
+    snit2
+    tk
+} -body {
+    widgetadaptor mylabel {
+        constructor {args} {
+            installhull [label $self]
+        }
+        method howdy {} {return "Howdy!"}
+    }
+
+    catch {mylabel foo} result
+    tkbide
+    set result
+} -cleanup {
+    mylabel destroy
+} -result {unknown subcommand "foo": namespace ::mylabel does not export any commands}
+
+::tcltest::test widgetadaptor-1.11 {user-defined destructors are called} -constraints {
+    tk
+} -body {
+    widgetadaptor mylabel {
+        typevariable flag ""
+
+        constructor {args} {
+            installhull [label $self]
+            set flag "created $self"
+        }
+
+        destructor {
+            set flag "destroyed $self"
+        }
+
+        typemethod getflag {} {
+            return $flag
+        }
+    }
+
+    mylabel .label
+    set a [mylabel getflag]
+    destroy .label
+    tkbide
+    list $a [mylabel getflag]
+} -cleanup {
+    mylabel destroy
+} -result {{created .label} {destroyed .label}}
+
+# Case 1
+::tcltest::test widgetadaptor-1.12 {destroy method not defined for widget types} -constraints {
+    snit1
+    tk
+} -body {
+    widgetadaptor mylabel {
+        constructor {args} {
+            installhull [label $self]
+        }
+    }
+
+    mylabel .label
+    catch {.label destroy} result
+    destroy .label
+    tkbide
+    set result
+} -cleanup {
+    mylabel destroy
+} -result {".label destroy" is not defined}
+
+# Case 2
+::tcltest::test widgetadaptor-1.13 {destroy method not defined for widget types} -constraints {
+    snit2
+    tk
+} -body {
+    widgetadaptor mylabel {
+        constructor {args} {
+            installhull [label $self]
+        }
+    }
+
+    mylabel .label
+    catch {.label destroy} result
+    destroy .label
+    tkbide
+    set result
+} -cleanup {
+    mylabel destroy
+} -result {unknown subcommand "destroy": namespace ::mylabel::Snit_inst1 does not export any commands}
+
+::tcltest::test widgetadaptor-1.14 {hull can be repeatedly renamed} -constraints {
+    tk
+} -body {
+    widgetadaptor basetype {
+        constructor {args} {
+            installhull [label $self]
+        }
+
+        method basemethod {} { return "basemethod" }
+    }
+
+    widgetadaptor w1 {
+        constructor {args} {
+            installhull [basetype create $self]
+        }
+    }
+
+    widgetadaptor w2 {
+        constructor {args} {
+            installhull [w1 $self]
+        }
+    }
+
+    set a [w2 .foo]
+    destroy .foo
+    tkbide
+    set a
+} -cleanup {
+    w2 destroy
+    w1 destroy
+    basetype destroy
+} -result {.foo}
+
+::tcltest::test widgetadaptor-1.15 {widget names can be generated} -constraints {
+    tk
+} -body {
+    widgetadaptor unique {
+        constructor {args} {
+            installhull [label $self]
+        }
+    }
+
+    set w [unique .%AUTO%]
+    destroy $w
+    tkbide
+    set w
+} -cleanup {
+    unique destroy
+} -result {.unique1}
+
+::tcltest::test widgetadaptor-1.16 {snit::widgetadaptor as hull} -constraints {
+    tk
+} -body {
+    widgetadaptor mylabel {
+        constructor {args} {
+            installhull [label $self]
+            $self configurelist $args
+        }
+        method method1 {} {
+            return "method1"
+        }
+        delegate option * to hull
+    }
+
+    widgetadaptor mylabel2 {
+        constructor {args} {
+            installhull [mylabel $self]
+            $self configurelist $args
+        }
+        method method2 {} {
+            return "method2: [$hull method1]"
+        }
+        delegate option * to hull
+    }
+
+    mylabel2 .label -text "Some Text"
+    set a [.label method2]
+    set b [.label cget -text]
+    .label configure -text "More Text"
+    set c [.label cget -text]
+    set d [namespace children ::mylabel2]
+    set e [namespace children ::mylabel]
+
+    destroy .label
+
+    set f [namespace children ::mylabel2]
+    set g [namespace children ::mylabel]
+
+    mylabel2 destroy
+    mylabel destroy
+
+    tkbide
+    list $a $b $c $d $e $f $g
+} -result {{method2: method1} {Some Text} {More Text} ::mylabel2::Snit_inst1 ::mylabel::Snit_inst1 {} {}}
+
+::tcltest::test widgetadaptor-1.17 {snit::widgetadaptor as hull; use rename} -constraints {
+    tk bug8.5a3
+} -body {
+    widgetadaptor mylabel {
+        constructor {args} {
+            installhull [label $self]
+            $self configurelist $args
+        }
+        method method1 {} {
+            return "method1"
+        }
+        delegate option * to hull
+    }
+
+    widgetadaptor mylabel2 {
+        constructor {args} {
+            installhull [mylabel $self]
+            $self configurelist $args
+        }
+        method method2 {} {
+            return "method2: [$hull method1]"
+        }
+        delegate option * to hull
+    }
+
+    mylabel2 .label -text "Some Text"
+    set a [.label method2]
+    set b [.label cget -text]
+    .label configure -text "More Text"
+    set c [.label cget -text]
+    set d [namespace children ::mylabel2]
+    set e [namespace children ::mylabel]
+
+    rename .label ""
+
+    set f [namespace children ::mylabel2]
+    set g [namespace children ::mylabel]
+
+    mylabel2 destroy
+    mylabel destroy
+
+    tkbide
+    list $a $b $c $d $e $f $g
+} -result {{method2: method1} {Some Text} {More Text} ::mylabel2::Snit_inst1 ::mylabel::Snit_inst1 {} {}}
+
+::tcltest::test widgetadaptor-1.18 {BWidget Label as hull} -constraints {
+    bwidget
+} -body {
+    widgetadaptor mylabel {
+        constructor {args} {
+            installhull [Label $win]
+            $self configurelist $args
+        }
+        delegate option * to hull
+    }
+
+    mylabel .label -text "Some Text"
+    set a [.label cget -text]
+
+    .label configure -text "More Text"
+    set b [.label cget -text]
+
+    set c [namespace children ::mylabel]
+
+    destroy .label
+
+    set d [namespace children ::mylabel]
+
+    mylabel destroy
+
+    tkbide
+    list $a $b $c $d
+} -result {{Some Text} {More Text} ::mylabel::Snit_inst1 {}}
+
+::tcltest::test widgetadaptor-1.19 {error in widgetadaptor constructor} -constraints {
+    tk
+} -body {
+    widgetadaptor mylabel {
+        constructor {args} {
+            error "Simulated Error"
+        }
+    }
+
+    mylabel .lab
+} -returnCodes {
+    error
+} -cleanup {
+    mylabel destroy
+} -result {Error in constructor: Simulated Error}
+
+
+tcltest::cleanupTests

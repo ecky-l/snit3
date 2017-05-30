@@ -1,0 +1,173 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# Advanced installhull tests
+#
+# installhull is used to install the hull widget for both widgets and
+# widget adaptors.  It has two forms.  In one form it installs a widget
+# created by some third party; in this form no querying of the option
+# database is needed, because we haven't taken responsibility for creating
+# it.  But in the other form (installhull using) installhull actually
+# creates the widget, and takes responsibility for querying the
+# option database as needed.
+#
+# NOTE: "installhull using" is always used to create a widget's hull frame.
+#
+# That options passed into installhull override those from the
+# option database.
+
+::tcltest::test installhull-1.1 {
+    options delegated to a widget's hull frame with the same name are
+    initialized from the option database.  Note that there's no
+    explicit code in Snit to do this; it happens because we set the
+    -class when the widget was created.  In fact, it happens whether
+    we delegate the option name or not.
+} -constraints {
+    tk
+} -body {
+    widget myframe {
+        delegate option -background to hull
+
+        typeconstructor {
+            option add *Myframe.background red
+            option add *Myframe.width 123
+        }
+
+        method getwid {} {
+            $hull cget -width
+        }
+    }
+
+    myframe .frm
+    set a [.frm cget -background]
+    set b [.frm getwid]
+    destroy .frm
+    tkbide
+    list $a $b
+} -cleanup {
+    myframe destroy
+} -result {red 123}
+
+::tcltest::test installhull-1.2 {
+    Options delegated to a widget's hull frame with a different name are
+    initialized from the option database.
+} -constraints {
+    tk
+} -body {
+    widget myframe {
+        delegate option -mainbackground to hull as -background
+
+        typeconstructor {
+            option add *Myframe.mainbackground red
+        }
+    }
+
+    myframe .frm
+    set a [.frm cget -mainbackground]
+    destroy .frm
+    tkbide
+    set a
+} -cleanup {
+    myframe destroy
+} -result {red}
+
+::tcltest::test installhull-1.3 {
+    options delegated to a widgetadaptor's hull frame with the same name are
+    initialized from the option database.  Note that there's no
+    explicit code in Snit to do this; there's no way to change the
+    adapted hull widget's -class, so the widget is simply being
+    initialized normally.
+} -constraints {
+    tk
+} -body {
+    widgetadaptor myframe {
+        delegate option -background to hull
+
+        typeconstructor {
+            option add *Frame.background red
+            option add *Frame.width 123
+        }
+
+        constructor {args} {
+            installhull using frame
+        }
+
+        method getwid {} {
+            $hull cget -width
+        }
+    }
+
+    myframe .frm
+    set a [.frm cget -background]
+    set b [.frm getwid]
+    destroy .frm
+    tkbide
+    list $a $b
+} -cleanup {
+    myframe destroy
+} -result {red 123}
+
+::tcltest::test installhull-1.4 {
+    Options delegated to a widget's hull frame with a different name are
+    initialized from the option database.
+} -constraints {
+    tk
+} -body {
+    widgetadaptor myframe {
+        delegate option -mainbackground to hull as -background
+
+        typeconstructor {
+            option add *Frame.mainbackground red
+        }
+
+        constructor {args} {
+            installhull using frame
+        }
+    }
+
+    myframe .frm
+    set a [.frm cget -mainbackground]
+    destroy .frm
+    tkbide
+    set a
+} -cleanup {
+    myframe destroy
+} -result {red}
+
+::tcltest::test installhull-1.5 {
+    Option values read from the option database are overridden by options
+    explicitly passed, even if delegated under a different name.
+} -constraints {
+    tk
+} -body {
+    widgetadaptor myframe {
+        delegate option -mainbackground to hull as -background
+
+        typeconstructor {
+            option add *Frame.mainbackground red
+            option add *Frame.width 123
+        }
+
+        constructor {args} {
+            installhull using frame -background green -width 321
+        }
+
+        method getwid {} {
+            $hull cget -width
+        }
+    }
+
+    myframe .frm
+    set a [.frm cget -mainbackground]
+    set b [.frm getwid]
+    destroy .frm
+    tkbide
+    list $a $b
+} -cleanup {
+    myframe destroy
+} -result {green 321}
+
+
+tcltest::cleanupTests

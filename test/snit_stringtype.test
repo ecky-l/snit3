@@ -1,0 +1,104 @@
+
+
+
+#-----------------------------------------------------------------------
+# snit::stringtype
+
+::tcltest::test stringtype-1.1 {stringtype, valid string} -body {
+    snit::stringtype validate ""
+} -result {}
+
+::tcltest::test stringtype-2.1 {stringtype subtype: invalid -regexp} -body {
+    snit::stringtype subtype -regexp "\[A-Z"
+} -returnCodes {
+    error
+} -result {Error in constructor: invalid -regexp: "[A-Z"}
+
+::tcltest::test stringtype-2.2 {stringtype subtype: invalid -minlen} -body {
+    snit::stringtype subtype -minlen foo
+} -returnCodes {
+    error
+} -result {Error in constructor: invalid -minlen: "foo"}
+
+::tcltest::test stringtype-2.3 {stringtype subtype: invalid -maxlen} -body {
+    snit::stringtype subtype -maxlen foo
+} -returnCodes {
+    error
+} -result {Error in constructor: invalid -maxlen: "foo"}
+
+::tcltest::test stringtype-2.4 {stringtype subtype: -maxlen < -minlen} -body {
+    snit::stringtype subtype -maxlen 1 -minlen 5
+} -returnCodes {
+    error
+} -result {Error in constructor: -maxlen < -minlen}
+
+::tcltest::test stringtype-2.5 {stringtype subtype: -minlen < 0} -body {
+    snit::stringtype subtype -minlen -1
+} -returnCodes {
+    error
+} -result {Error in constructor: invalid -minlen: "-1"}
+
+::tcltest::test stringtype-2.6 {stringtype subtype: -maxlen < 0} -body {
+    snit::stringtype subtype -maxlen -1
+} -returnCodes {
+    error
+} -result {Error in constructor: -maxlen < -minlen}
+
+::tcltest::test stringtype-3.1 {stringtype subtype: -glob, valid} -body {
+    snit::stringtype subtype -glob "*FOO*"
+    subtype validate 1FOO2
+} -cleanup {
+    subtype destroy
+} -result {1FOO2}
+
+::tcltest::test stringtype-3.2 {stringtype subtype: -glob, case-insensitive} -body {
+    snit::stringtype subtype -nocase yes -glob "*FOO*"
+    subtype validate 1foo2
+} -cleanup {
+    subtype destroy
+} -result {1foo2}
+
+::tcltest::test stringtype-3.3 {stringtype subtype: -glob invalid, case-sensitive} -body {
+    snit::stringtype subtype -glob "*FOO*"
+    codecatch {subtype validate 1foo2}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid value "1foo2"}
+
+::tcltest::test stringtype-5.4 {stringtype subtype: -glob invalid, case-insensitive} -body {
+    snit::stringtype subtype -nocase yes -glob "*FOO*"
+    codecatch {subtype validate bar}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid value "bar"}
+
+::tcltest::test stringtype-5.5 {stringtype subtype: -regexp valid, case-sensitive} -body {
+    snit::stringtype subtype -regexp {^[A-Z]+$}
+    subtype validate FOO
+} -cleanup {
+    subtype destroy
+} -result {FOO}
+
+::tcltest::test stringtype-5.6 {stringtype subtype: -regexp valid, case-insensitive} -body {
+    snit::stringtype subtype -nocase yes -regexp {^[A-Z]+$}
+    subtype validate foo
+} -cleanup {
+    subtype destroy
+} -result {foo}
+
+::tcltest::test stringtype-5.7 {stringtype subtype: -regexp invalid, case-sensitive} -body {
+    snit::stringtype subtype -regexp {^[A-Z]+$}
+    codecatch {subtype validate foo}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid value "foo"}
+
+::tcltest::test stringtype-5.8 {stringtype subtype: -regexp invalid, case-insensitive} -body {
+    snit::stringtype subtype -nocase yes -regexp {^[A-Z]+$}
+    codecatch {subtype validate foo1}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid value "foo1"}
+
+
+tcltest::cleanupTests

@@ -1,0 +1,165 @@
+
+
+
+#-----------------------------------------------------------------------
+# hierarchical type methods
+
+::tcltest::test htypemethod-1.1 {hierarchical method, two tokens} -body {
+    type dog {
+        typemethod {wag tail} {} {
+            return "wags tail"
+        }
+    }
+
+    dog wag tail
+} -cleanup {
+    dog destroy
+} -result {wags tail}
+
+::tcltest::test htypemethod-1.2 {hierarchical method, three tokens} -body {
+    type dog {
+        typemethod {wag tail proudly} {} {
+            return "wags tail proudly"
+        }
+    }
+
+    dog wag tail proudly
+} -cleanup {
+    dog destroy
+} -result {wags tail proudly}
+
+::tcltest::test htypemethod-1.3 {hierarchical method, four tokens} -body {
+    type dog {
+        typemethod {wag tail really high} {} {
+            return "wags tail really high"
+        }
+    }
+
+    dog wag tail really high
+} -cleanup {
+    dog destroy
+} -result {wags tail really high}
+
+::tcltest::test htypemethod-1.4 {redefinition is OK} -body {
+    type dog {
+        typemethod {wag tail} {} {
+            return "wags tail"
+        }
+        typemethod {wag tail} {} {
+            return "wags tail briskly"
+        }
+    }
+
+    dog wag tail
+} -cleanup {
+    dog destroy
+} -result {wags tail briskly}
+
+# Case 1
+::tcltest::test htypemethod-1.5 {proper error on missing submethod} -constraints {
+    snit1
+} -body {
+    cleanup
+
+    type dog {
+        typemethod {wag tail} {} { }
+    }
+
+    dog wag
+} -returnCodes {
+    error
+}  -cleanup {
+    dog destroy
+} -result {wrong number args: should be "::dog wag method args"}
+
+# Case 2
+::tcltest::test htypemethod-1.6 {proper error on missing submethod} -constraints {
+    snit2
+} -body {
+    cleanup
+
+    type dog {
+        typemethod {wag tail} {} { }
+    }
+
+    dog wag
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result [expect \
+	       {wrong # args: should be "dog wag subcommand ?arg ...?"} \
+	       {wrong # args: should be "dog wag subcommand ?argument ...?"}]
+
+# Case 1
+::tcltest::test htypemethod-1.7 {proper error on bogus submethod} -constraints {
+    snit1
+} -body {
+    cleanup
+
+    type dog {
+        typemethod {wag tail} {} { }
+    }
+
+    dog wag ears
+} -returnCodes {
+    error
+}  -cleanup {
+    dog destroy
+} -result {"::dog wag ears" is not defined}
+
+# Case 2
+::tcltest::test htypemethod-1.8 {proper error on bogus submethod} -constraints {
+    snit2
+} -body {
+    cleanup
+
+    type dog {
+        typemethod {wag tail} {} { }
+    }
+
+    dog wag ears
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {unknown subcommand "ears": namespace ::dog does not export any commands}
+
+::tcltest::test htypemethod-2.1 {prefix/method collision, level 1, order 1} -body {
+    type dog {
+        typemethod wag {} {}
+        typemethod {wag tail} {} {}
+    }
+} -returnCodes {
+    error
+} -result {Error in "typemethod {wag tail}...", "wag" has no submethods.}
+
+::tcltest::test htypemethod-2.2 {prefix/method collision, level 1, order 2} -body {
+    type dog {
+        typemethod {wag tail} {} {}
+        typemethod wag {} {}
+    }
+} -returnCodes {
+    error
+} -result {Error in "typemethod wag...", "wag" has submethods.}
+
+::tcltest::test htypemethod-2.3 {prefix/method collision, level 2, order 1} -body {
+    type dog {
+        typemethod {wag tail} {} {}
+        typemethod {wag tail proudly} {} {}
+    }
+} -returnCodes {
+    error
+} -result {Error in "typemethod {wag tail proudly}...", "wag tail" has no submethods.}
+
+::tcltest::test htypemethod-2.4 {prefix/method collision, level 2, order 2} -body {
+    type dog {
+        typemethod {wag tail proudly} {} {}
+        typemethod {wag tail} {} {}
+    }
+} -returnCodes {
+    error
+} -result {Error in "typemethod {wag tail}...", "wag tail" has submethods.}
+
+
+tcltest::cleanupTests

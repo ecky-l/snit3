@@ -1,0 +1,112 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# Cget cache
+
+tcltest::test cgetcache-1.1 {Instance rename invalidates cache} -setup {} -body {
+    type dog {
+        option -foo -default bar -cgetmethod getfoo
+
+        method getfoo {option} {
+            return $options($option)
+        }
+    }
+
+    dog fido -foo quux
+
+    # Cache the cget command.
+    fido cget -foo
+
+    rename fido spot
+
+    spot cget -foo
+} -cleanup {
+    dog destroy
+} -result {quux}
+
+tcltest::test cgetcache-1.2 {Component rename invalidates cache} -setup {} -body {
+    type tail {
+        option -foo bar
+    }
+
+    type dog {
+        delegate option -foo to tail
+
+        constructor {args} {
+            set tail [tail %AUTO%]
+            $tail configure -foo quux
+        }
+
+        method retail {} {
+            set tail [tail %AUTO%]
+        }
+    }
+
+    dog fido
+
+    # Cache the cget command.
+    fido cget -foo
+
+    # Invalidate the cache
+    fido retail
+
+    fido cget -foo
+} -cleanup {
+    dog destroy
+    tail destroy
+} -result {bar}
+
+# case 1
+tcltest::test cgetcache-1.3 {Invalid -cgetmethod causes error} -constraints {
+    snit1
+} -setup {} -body {
+    type dog {
+        option -foo -default bar -cgetmethod bogus
+    }
+
+    dog fido -foo quux
+
+    fido cget -foo
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {can't cget -foo, "::fido bogus" is not defined}
+
+# case 2
+tcltest::test cgetcache-1.4 {Invalid -cgetmethod causes error} -constraints {
+    snit2
+} -setup {} -body {
+    type dog {
+        option -foo -default bar -cgetmethod bogus
+    }
+
+    dog fido -foo quux
+
+    fido cget -foo
+} -returnCodes {
+    error
+} -cleanup {
+    dog destroy
+} -result {unknown subcommand "bogus": must be cget, or configurelist}
+
+tcltest::test cgetcache-1.5 {hierarchical -cgetmethod} -setup {} -body {
+    type dog {
+        option -foo -default bar -cgetmethod {Get Opt}
+
+        method {Get Opt} {option} {
+            return Dummy
+        }
+    }
+
+    dog fido
+
+    fido cget -foo
+} -cleanup {
+    dog destroy
+} -result {Dummy}
+
+
+tcltest::cleanupTests

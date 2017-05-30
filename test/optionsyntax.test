@@ -1,0 +1,222 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# Option syntax tests.
+#
+# This set of tests verifies that the option statement is interpreted
+# properly, that errors are caught, and that the type's optionInfo
+# array is initialized properly.
+#
+# TBD: At some point, this needs to be folded into the regular
+# option tests.
+
+::tcltest::test optionsyntax-1.1 {local option names are saved} -body {
+    type dog {
+        option -foo
+        option -bar
+    }
+
+    set ::dog::Snit_optionInfo(local)
+} -cleanup {
+    dog destroy
+} -result {-foo -bar}
+
+::tcltest::test optionsyntax-1.2 {islocal flag is set} -body {
+    type dog {
+        option -foo
+    }
+
+    set ::dog::Snit_optionInfo(islocal--foo)
+} -cleanup {
+    dog destroy
+} -result {1}
+
+::tcltest::test optionsyntax-2.1 {implicit resource and class} -body {
+    type dog {
+        option -foo
+    }
+
+    list \
+        $::dog::Snit_optionInfo(resource--foo) \
+        $::dog::Snit_optionInfo(class--foo)
+} -cleanup {
+    dog destroy
+} -result {foo Foo}
+
+::tcltest::test optionsyntax-2.2 {explicit resource, default class} -body {
+    type dog {
+        option {-foo ffoo}
+    }
+
+    list \
+        $::dog::Snit_optionInfo(resource--foo) \
+        $::dog::Snit_optionInfo(class--foo)
+} -cleanup {
+    dog destroy
+} -result {ffoo Ffoo}
+
+::tcltest::test optionsyntax-2.3 {explicit resource and class} -body {
+    type dog {
+        option {-foo ffoo FFoo}
+    }
+
+    list \
+        $::dog::Snit_optionInfo(resource--foo) \
+        $::dog::Snit_optionInfo(class--foo)
+} -cleanup {
+    dog destroy
+} -result {ffoo FFoo}
+
+::tcltest::test optionsyntax-2.4 {can't redefine explicit resource} -body {
+    type dog {
+        option {-foo ffoo}
+        option {-foo foo}
+    }
+} -returnCodes {
+    error
+} -result {Error in "option {-foo foo}...", resource name redefined from "ffoo" to "foo"}
+
+::tcltest::test optionsyntax-2.5 {can't redefine explicit class} -body {
+    type dog {
+        option {-foo ffoo Ffoo}
+        option {-foo ffoo FFoo}
+    }
+} -returnCodes {
+    error
+} -result {Error in "option {-foo ffoo FFoo}...", class name redefined from "Ffoo" to "FFoo"}
+
+::tcltest::test optionsyntax-2.6 {can redefine implicit resource and class} -body {
+    type dog {
+        option -foo
+        option {-foo ffoo}
+        option {-foo ffoo FFoo}
+        option -foo
+    }
+} -cleanup {
+    dog destroy
+} -result {::dog}
+
+::tcltest::test optionsyntax-3.1 {no default value} -body {
+    type dog {
+        option -foo
+    }
+
+    set ::dog::Snit_optionInfo(default--foo)
+} -cleanup {
+    dog destroy
+} -result {}
+
+::tcltest::test optionsyntax-3.2 {default value, old syntax} -body {
+    type dog {
+        option -foo bar
+    }
+
+    set ::dog::Snit_optionInfo(default--foo)
+} -cleanup {
+    dog destroy
+} -result {bar}
+
+::tcltest::test optionsyntax-3.3 {option definition options can be set} -body {
+    type dog {
+        option -foo \
+            -default Bar \
+            -validatemethod Validate \
+            -configuremethod Configure \
+            -cgetmethod Cget \
+            -readonly 1
+    }
+
+    list \
+        $::dog::Snit_optionInfo(default--foo) \
+        $::dog::Snit_optionInfo(validate--foo) \
+        $::dog::Snit_optionInfo(configure--foo) \
+        $::dog::Snit_optionInfo(cget--foo) \
+        $::dog::Snit_optionInfo(readonly--foo)
+} -cleanup {
+    dog destroy
+} -result {Bar Validate Configure Cget 1}
+
+::tcltest::test optionsyntax-3.4 {option definition option values accumulate} -body {
+    type dog {
+        option -foo -default Bar
+        option -foo -validatemethod Validate
+        option -foo -configuremethod Configure
+        option -foo -cgetmethod Cget
+        option -foo -readonly 1
+    }
+
+    list \
+        $::dog::Snit_optionInfo(default--foo) \
+        $::dog::Snit_optionInfo(validate--foo) \
+        $::dog::Snit_optionInfo(configure--foo) \
+        $::dog::Snit_optionInfo(cget--foo) \
+        $::dog::Snit_optionInfo(readonly--foo)
+} -cleanup {
+    dog destroy
+} -result {Bar Validate Configure Cget 1}
+
+::tcltest::test optionsyntax-3.5 {option definition option values can be redefined} -body {
+    type dog {
+        option -foo -default Bar
+        option -foo -validatemethod Validate
+        option -foo -configuremethod Configure
+        option -foo -cgetmethod Cget
+        option -foo -readonly 1
+        option -foo -default Bar2
+        option -foo -validatemethod Validate2
+        option -foo -configuremethod Configure2
+        option -foo -cgetmethod Cget2
+        option -foo -readonly 0
+    }
+
+    list \
+        $::dog::Snit_optionInfo(default--foo) \
+        $::dog::Snit_optionInfo(validate--foo) \
+        $::dog::Snit_optionInfo(configure--foo) \
+        $::dog::Snit_optionInfo(cget--foo) \
+        $::dog::Snit_optionInfo(readonly--foo)
+} -cleanup {
+    dog destroy
+} -result {Bar2 Validate2 Configure2 Cget2 0}
+
+::tcltest::test optionsyntax-3.6 {option -readonly defaults to 0} -body {
+    type dog {
+        option -foo
+    }
+
+    set ::dog::Snit_optionInfo(readonly--foo)
+} -cleanup {
+    dog destroy
+} -result {0}
+
+::tcltest::test optionsyntax-3.7 {option -readonly can be any boolean} -body {
+    type dog {
+        option -foo -readonly 0
+        option -foo -readonly 1
+        option -foo -readonly y
+        option -foo -readonly n
+    }
+} -cleanup {
+    dog destroy
+} -result {::dog}
+
+::tcltest::test optionsyntax-3.8 {option -readonly must be a boolean} -body {
+    type dog {
+        option -foo -readonly foo
+    }
+} -returnCodes {
+    error
+} -result {Error in "option -foo...", -readonly requires a boolean, got "foo"}
+
+::tcltest::test optionsyntax-3.9 {option -readonly can't be empty} -body {
+    type dog {
+        option -foo -readonly {}
+    }
+} -returnCodes {
+    error
+} -result {Error in "option -foo...", -readonly requires a boolean, got ""}
+
+
+tcltest::cleanupTests

@@ -1,0 +1,120 @@
+
+
+
+#-----------------------------------------------------------------------
+# snit::pixels
+
+::tcltest::test pixels-1.1 {no suffix} -constraints tk -body {
+    snit::pixels validate 5
+} -result {5}
+
+::tcltest::test pixels-1.2 {suffix} -constraints tk -body {
+    snit::pixels validate 5i
+} -result {5i}
+
+::tcltest::test pixels-1.3 {decimal} -constraints tk -body {
+    snit::pixels validate 5.5
+} -result {5.5}
+
+::tcltest::test pixels-1.4 {invalid} -constraints tk -body {
+    codecatch {snit::pixels validate 5.5abc}
+} -result {INVALID invalid value "5.5abc", expected pixels}
+
+::tcltest::test pixels-2.1 {bad -min} -constraints tk -body {
+    snit::pixels subtype -min abc
+} -returnCodes {
+    error
+} -result {Error in constructor: invalid -min: "abc"}
+
+::tcltest::test pixels-2.2 {bad -max} -constraints tk -body {
+    snit::pixels subtype -max abc
+} -returnCodes {
+    error
+} -result {Error in constructor: invalid -max: "abc"}
+
+::tcltest::test pixels-2.3 {-min > -max} -constraints tk -body {
+    snit::pixels subtype -min 10 -max 5
+} -returnCodes {
+    error
+} -result {Error in constructor: -max < -min}
+
+::tcltest::test pixels-3.1 {subtype, no suffix} -constraints tk -body {
+    snit::pixels subtype
+    subtype validate 5
+} -cleanup {
+    subtype destroy
+} -result {5}
+
+::tcltest::test pixels-3.2 {suffix} -constraints tk -body {
+    snit::pixels subtype
+    subtype validate 5i
+} -cleanup {
+    subtype destroy
+} -result {5i}
+
+::tcltest::test pixels-3.3 {decimal} -constraints tk -body {
+    snit::pixels subtype
+    subtype validate 5.5
+} -cleanup {
+    subtype destroy
+} -result {5.5}
+
+::tcltest::test pixels-3.4 {invalid} -constraints tk -body {
+    snit::pixels subtype
+    codecatch {subtype validate 5.5abc}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid value "5.5abc", expected pixels}
+
+
+::tcltest::test pixels-3.5 {subtype -min} -constraints tk -body {
+    snit::pixels subtype -min 5
+    subtype validate 10
+} -cleanup {
+    subtype destroy
+} -result {10}
+
+::tcltest::test pixels-3.6 {min of min, max} -constraints tk -body {
+    snit::pixels subtype -min 5 -max 20
+    subtype validate 5
+} -cleanup {
+    subtype destroy
+} -result {5}
+
+::tcltest::test pixels-3.7 {max of min, max} -constraints tk -body {
+    snit::pixels subtype -min 5 -max 20
+    subtype validate 20
+} -cleanup {
+    subtype destroy
+} -result {20}
+
+::tcltest::test pixels-3.8 {middle of min, max} -constraints tk -body {
+    snit::pixels subtype -min 5 -max 20
+    subtype validate 15
+} -cleanup {
+    subtype destroy
+} -result {15}
+
+::tcltest::test pixels-3.9 {invalid, < min} -constraints tk -body {
+    snit::pixels subtype -min 5
+    codecatch {subtype validate 4}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid value "4", expected pixels no less than 5}
+
+::tcltest::test pixels-3.10 {invalid, > max} -constraints tk -body {
+    snit::pixels subtype -min 5 -max 20
+    codecatch {subtype validate 21}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid value "21", expected pixels in range 5, 20}
+
+::tcltest::test pixels-3.11 {invalid, > max, range with suffix} -constraints tk -body {
+    snit::pixels subtype -min 5i -max 10i
+    codecatch {subtype validate 11i}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid value "11i", expected pixels in range 5i, 10i}
+
+
+tcltest::cleanupTests

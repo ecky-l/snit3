@@ -1,0 +1,129 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# snit::listtype
+
+::tcltest::test listtype-1.1 {listtype, length 0; valid} -body {
+    snit::listtype validate ""
+} -result {}
+
+::tcltest::test listtype-1.2 {listtype, length 1; valid} -body {
+    snit::listtype validate a
+} -result {a}
+
+::tcltest::test listtype-1.3 {listtype, length 2; valid} -body {
+    snit::listtype validate {a b}
+} -result {a b}
+
+::tcltest::test listtype-2.1 {listtype subtype, length 0; valid} -body {
+    snit::listtype subtype
+    subtype validate ""
+} -cleanup {
+    subtype destroy
+} -result {}
+
+::tcltest::test listtype-2.2 {listtype, length 1; valid} -body {
+    snit::listtype subtype
+    subtype validate a
+} -cleanup {
+    subtype destroy
+} -result {a}
+
+::tcltest::test listtype-2.3 {listtype, length 2; valid} -body {
+    snit::listtype subtype
+    subtype validate {a b}
+} -cleanup {
+    subtype destroy
+} -result {a b}
+
+::tcltest::test listtype-2.4 {listtype, invalid -minlen} -body {
+    snit::listtype subtype -minlen abc
+} -returnCodes {
+    error
+} -result {Error in constructor: invalid -minlen: "abc"}
+
+::tcltest::test listtype-2.5 {listtype, negative -minlen} -body {
+    snit::listtype subtype -minlen -1
+} -returnCodes {
+    error
+} -result {Error in constructor: invalid -minlen: "-1"}
+
+::tcltest::test listtype-2.6 {listtype, invalid -maxlen} -body {
+    snit::listtype subtype -maxlen abc
+} -returnCodes {
+    error
+} -result {Error in constructor: invalid -maxlen: "abc"}
+
+::tcltest::test listtype-2.7 {listtype, -maxlen < -minlen} -body {
+    snit::listtype subtype -minlen 10 -maxlen 9
+} -returnCodes {
+    error
+} -result {Error in constructor: -maxlen < -minlen}
+
+::tcltest::test listtype-3.1 {-minlen 2, length 2; valid} -body {
+    snit::listtype subtype -minlen 2 
+    subtype validate {a b}
+} -cleanup {
+    subtype destroy
+} -result {a b}
+
+::tcltest::test listtype-3.2 {-minlen 2, length 3; valid} -body {
+    snit::listtype subtype -minlen 2 
+    subtype validate {a b c}
+} -cleanup {
+    subtype destroy
+} -result {a b c}
+
+::tcltest::test listtype-3.3 {-minlen 2, length 1; invalid} -body {
+    snit::listtype subtype -minlen 2 
+    codecatch {subtype validate a}
+} -cleanup {
+    subtype destroy
+} -result {INVALID value has too few elements; at least 2 expected}
+
+::tcltest::test listtype-3.4 {range 1 to 3, length 1; valid} -body {
+    snit::listtype subtype -minlen 1 -maxlen 3
+    subtype validate a
+} -cleanup {
+    subtype destroy
+} -result {a}
+
+::tcltest::test listtype-3.5 {range 1 to 3, length 3; valid} -body {
+    snit::listtype subtype -minlen 1 -maxlen 3
+    subtype validate {a b c}
+} -cleanup {
+    subtype destroy
+} -result {a b c}
+
+::tcltest::test listtype-3.6 {range 1 to 3, length 0; invalid} -body {
+    snit::listtype subtype -minlen 1 -maxlen 3
+    codecatch {subtype validate {}}
+} -cleanup {
+    subtype destroy
+} -result {INVALID value has too few elements; at least 1 expected}
+
+::tcltest::test listtype-3.7 {range 1 to 3, length 4; invalid} -body {
+    snit::listtype subtype -minlen 1 -maxlen 3
+    codecatch {subtype validate {a b c d}}
+} -cleanup {
+    subtype destroy
+} -result {INVALID value has too many elements; no more than 3 expected}
+
+::tcltest::test listtype-4.1 {boolean list, valid} -body {
+    snit::listtype subtype -type snit::boolean
+    subtype validate {yes 1 true}
+} -cleanup {
+    subtype destroy
+} -result {yes 1 true}
+
+::tcltest::test listtype-4.2 {boolean list, invalid} -body {
+    snit::listtype subtype -type snit::boolean
+    codecatch {subtype validate {yes 1 abc no}}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid boolean "abc", should be one of: 1, 0, true, false, yes, no, on, off}
+
+
+tcltest::cleanupTests

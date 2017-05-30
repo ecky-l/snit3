@@ -1,0 +1,29 @@
+
+
+
+#-----------------------------------------------------------------------
+# snit::window
+
+::tcltest::test window-1.1 {window: valid} -constraints tk -body {
+    snit::window validate .
+} -result {.}
+
+::tcltest::test window-1.2 {window: invalid} -constraints tk -body {
+    codecatch {snit::window validate .nonesuch}
+} -result {INVALID invalid value ".nonesuch", value is not a window}
+
+::tcltest::test window-2.1 {window subtype: valid} -constraints tk -body {
+    snit::window subtype
+    subtype validate .
+} -cleanup {
+    subtype destroy
+} -result {.}
+
+::tcltest::test window-2.2 {window subtype: invalid} -constraints tk -body {
+    snit::window subtype
+    codecatch {subtype validate .nonesuch}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid value ".nonesuch", value is not a window}
+
+tcltest::cleanupTests

@@ -1,0 +1,90 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# onconfigure
+
+::tcltest::test onconfigure-1.1 {invalid onconfigure methods are caught} -body {
+    type dog {
+        onconfigure -color {value} { }
+    }
+} -returnCodes {
+    error
+} -result {onconfigure -color: option "-color" unknown}
+
+::tcltest::test onconfigure-1.2 {onconfigure methods take one argument} -body {
+    type dog {
+        option -color golden
+
+        onconfigure -color {value badarg} { }
+    }
+} -returnCodes {
+    error
+} -result {onconfigure -color handler should have one argument, got "value badarg"}
+
+::tcltest::test onconfigure-1.3 {onconfigure methods work} -body {
+    type dog {
+        option -color golden
+
+        onconfigure -color {value} {
+            set options(-color) "*$value*"
+        }
+    }
+
+    dog create spot
+    spot configure -color brown
+    spot cget -color
+} -cleanup {
+    dog destroy
+} -result {*brown*}
+
+::tcltest::test onconfigure-1.4 {onconfigure arg can't be type} -body {
+    type dog {
+        option -color
+        onconfigure -color {type} { }
+    }
+} -returnCodes {
+    error
+} -result {onconfigure -color's arglist may not contain "type" explicitly}
+
+::tcltest::test onconfigure-1.5 {onconfigure arg can't be self} -body {
+    type dog {
+        option -color
+        onconfigure -color {self} { }
+    }
+} -returnCodes {
+    error
+} -result {onconfigure -color's arglist may not contain "self" explicitly}
+
+#-----------------------------------------------------------------------
+# oncget
+
+::tcltest::test oncget-1.1 {invalid oncget methods are caught} -body {
+    type dog {
+        oncget -color { }
+    }
+} -returnCodes {
+    error
+} -result {Error in "oncget -color...", option "-color" unknown}
+
+::tcltest::test oncget-1.2 {oncget methods work} -body {
+    cleanup
+
+    type dog {
+        option -color golden
+
+        oncget -color {
+            return "*$options(-color)*"
+        }
+    }
+
+    dog create spot
+    spot configure -color brown
+    spot cget -color
+} -cleanup {
+    dog destroy
+} -result {*brown*}
+
+
+tcltest::cleanupTests

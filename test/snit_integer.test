@@ -1,0 +1,77 @@
+
+
+
+
+#-----------------------------------------------------------------------
+# snit::integer
+
+::tcltest::test integer-1.1 {integer: invalid -min} -body {
+    snit::integer obj -min abc
+} -returnCodes {
+    error
+} -result {Error in constructor: invalid -min: "abc"}
+
+::tcltest::test integer-1.2 {integer: invalid -max} -body {
+    snit::integer obj -max abc
+} -returnCodes {
+    error
+} -result {Error in constructor: invalid -max: "abc"}
+
+::tcltest::test integer-1.3 {integer: invalid, max < min} -body {
+    snit::integer obj -min 5 -max 0
+} -returnCodes {
+    error
+} -result {Error in constructor: -max < -min}
+
+::tcltest::test integer-2.1 {integer type: valid} -body {
+    snit::integer validate 1
+} -result {1}
+
+::tcltest::test integer-2.2 {integer type: invalid} -body {
+    codecatch {snit::integer validate abc}
+} -result {INVALID invalid value "abc", expected integer}
+
+::tcltest::test integer-3.1 {integer subtype: valid, no range} -body {
+    snit::integer subtype
+    subtype validate 1
+} -cleanup {
+    subtype destroy
+} -result {1}
+
+::tcltest::test integer-3.2 {integer subtype: valid, min but no max} -body {
+    snit::integer subtype -min 0
+    subtype validate 1
+} -cleanup {
+    subtype destroy
+} -result {1}
+
+::tcltest::test integer-3.3 {integer subtype: valid, min and max} -body {
+    snit::integer subtype -min 0 -max 10
+    subtype validate 1
+} -cleanup {
+    subtype destroy
+} -result {1}
+
+::tcltest::test integer-4.1 {integer subtype: not a number} -body {
+    snit::integer subtype
+    codecatch {subtype validate quux}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid value "quux", expected integer}
+
+::tcltest::test integer-4.2 {integer subtype: less than min, no max} -body {
+    snit::integer subtype -min 0
+    codecatch {subtype validate -1}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid value "-1", expected integer no less than 0}
+
+::tcltest::test integer-4.3 {integer subtype: less than min, with max} -body {
+    snit::integer subtype -min 0 -max 5
+    codecatch {subtype validate -1}
+} -cleanup {
+    subtype destroy
+} -result {INVALID invalid value "-1", expected integer in range 0, 5}
+
+
+tcltest::cleanupTests
